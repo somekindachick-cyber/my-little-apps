@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>西西的答案 | Pixel Oracle</title>
+    <style>
+        /* 引入像素字体（如果加载失败会回退到等宽字体） */
+        @import url('https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap');
+
+        :root {
+            --pixel-pink: #ffafbd;
+            --pixel-yellow: #ffedbc;
+            --pixel-blue: #a1c4fd;
+            --book-color: #ff8c94;
+            --book-edge: #e87a82;
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--pixel-pink), var(--pixel-yellow), var(--pixel-blue));
+            font-family: 'ZCOOL KuaiLe', 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        /* 提示文字 */
+        .instruction {
+            color: #5d5d5d;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 0px rgba(255,255,255,0.5);
+            animation: pulse 2s infinite;
+        }
+
+        /* 像素箭头 */
+        .arrow {
+            font-size: 2rem;
+            color: #5d5d5d;
+            margin-bottom: 10px;
+            animation: bounce 1s infinite;
+        }
+
+        /* 书本容器 */
+        .scene {
+            width: 200px;
+            height: 260px;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .book {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: rotateY(-30deg); /* 初始略微倾斜 */
+        }
+
+        .book.open {
+            transform: rotateY(-180deg) translateX(100px);
+        }
+
+        /* 书封面和书页的通用样式 - 像素边框 */
+        .book-page {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            background: white;
+            box-shadow: 
+                inset 4px 4px 0px #000,
+                inset -4px -4px 0px #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+            backface-visibility: hidden;
+        }
+
+        /* 封面 */
+        .cover {
+            background: var(--book-color);
+            z-index: 2;
+            transform-origin: left;
+            transition: transform 0.8s;
+            border: 4px solid #000;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.1);
+        }
+
+        .cover-content {
+            border: 4px dashed rgba(255,255,255,0.5);
+            padding: 10px;
+            color: white;
+            font-size: 1.5rem;
+            text-align: center;
+        }
+
+        /* 书内页（答案所在页） */
+        .inner-page {
+            background: #fff;
+            transform: rotateY(180deg); /* 初始藏在背面 */
+            z-index: 1;
+            border: 4px solid #000;
+        }
+
+        .answer-text {
+            color: #222;
+            font-size: 1.8rem;
+            text-align: center;
+            word-break: break-all;
+        }
+
+        /* 动画 */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(10px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* 底部按钮 */
+        .reset-btn {
+            margin-top: 40px;
+            padding: 10px 20px;
+            background: #000;
+            color: #fff;
+            border: none;
+            font-family: inherit;
+            cursor: pointer;
+            visibility: hidden;
+            box-shadow: 4px 4px 0px #555;
+        }
+
+        .reset-btn:active {
+            box-shadow: 1px 1px 0px #555;
+            transform: translate(3px, 3px);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="instruction">心里默念你的问题</div>
+    <div class="arrow" id="arrow">↓</div>
+
+    <div class="scene" onclick="flipBook()">
+        <div class="book" id="book">
+            <div class="book-page cover">
+                <div class="cover-content">西西的<br>答案</div>
+            </div>
+            <div class="book-page inner-page">
+                <div class="answer-text" id="answer">...</div>
+            </div>
+        </div>
+    </div>
+
+    <button class="reset-btn" id="reset" onclick="resetBook()">合上书本</button>
+
+<script>
+    // 答案库（此处仅展示部分，你可以将300个答案放入此处）
+    const answers = [
+        // 第一部分：川味直觉
+        "要得。", "没得事。", "莫来头。", "搞快点。", "爬开。", "巴适。", "莫豁我。", "真的。", "假得。", "算球了。",
+        "撇脱。", "挺起。", "虚啥子。", "走起。", "没戏。", "好生点。", "随便。", "就是。", "莫方。", "稳当。",
+        "嘿扎实。", "莫搞。", "对头。", "不行。", "必须。", "豁皮。", "莫想。", "抓紧。", "撇开。", "莫得。",
+        "好。", "坏。", "成。", "败。", "走。", "留。", "冲。", "撤。", "忍。", "闹。",
+        "乖。", "犟。", "莽。", "细。", "绝。", "稳。", "准。", "狠。", "快。", "慢。",
+        // 第二部分：清醒女权
+        "你最贵。", "他配吗？", "先爱己。", "独立点。", "拒绝。", "别妥协。", "没必要。", "他太普通。", "关你屁事。", "关我屁事。",
+        "搞事业。", "去攀岩。", "别心软。", "莫向下。", "你是对。", "信直觉。", "别当妈。", "别当女。", "当你自。", "别洗脑。",
+        "没结果。", "没意义。", "没质量。", "没可能。", "没诚意。", "他在装。", "他在演。", "别陪演。", "换频道。", "这不行。",
+        "主场。", "别听他。", "做决定。", "别犹豫。", "别回头。", "没欠谁。", "自由。", "主权。", "核心。", "力量。",
+        "别反思。", "他反思。", "无视。", "屏蔽。", "拉黑。", "删掉。", "往前走。", "别低头。", "没压力。", "你最强。",
+        // 第三部分：民谣与诗
+        "米店花开。", "港岛妹妹。", "忽然想到。", "像风一样。", "那些遗憾。", "别等了。", "会好的。", "顺其自然。", "明天见。", "定数。",
+        "随风去。", "温暖点。", "别回头。", "故事。", "只是梦。", "醒醒。", "喝一杯。", "听首歌。", "晚风。", "孤独。",
+        "自由地。", "静默。", "漂泊。", "定居。", "拥抱。", "疏离。", "默契。", "误解。", "谅解。", "释怀。",
+        "这一刻。", "远方。", "脚下。", "岩墙。", "终点。", "过程。", "偶然。", "必然。", "宿命。", "运气。",
+        "试试看。", "不后悔。", "值得。", "不值。", "别等。", "离开。", "留下。", "重逢。", "告别。", "珍重。",
+        // 第四部分：生活哲学
+        "吃饭去。", "睡觉。", "洗澡。", "冥想。", "加班。", "辞职。", "买它。", "省省。", "扔掉。", "收藏。",
+        "面对。", "逃避。", "简单点。", "复杂了。", "闭嘴。", "开口。", "拒绝。", "接受。", "怀疑。", "相信。",
+        "暂缓。", "立即。", "稍后再说。", "还没到时候。", "就是现在。", "已经过了。", "下一次。", "最后一次。", "唯一一次。", "循环。",
+        "向上。", "向下。", "向左。", "向右。", "不动。", "跳过去。", "绕路。", "直行。", "倒退。", "飞翔。",
+        "现实点。", "理想点。", "俗气点。", "仙气点。", "随便。", "必须。", "也许。", "大概。", "绝对。", "可能。",
+        // 第五部分：随机与虚无
+        "哈哈哈。", "呵呵。", "喔。", "嗯。", "哎呀。", "啧啧。", "哇哦。", "嘿。", "嘶。", "呼。",
+        "闭眼。", "睁眼。", "抬头。", "低头。", "侧耳。", "屏息。", "微笑。", "哭吧。", "笑吧。", "闹吧。",
+        "看秀。", "吃西瓜。", "吃辣点。", "喝冰水。", "换衣。", "出门。", "回家。", "宅着。", "跑步。", "攀岩。",
+        "别问我。", "你知道。", "忘了它。", "记一世。", "小事。", "大事。", "无所谓。", "紧要。", "虚幻。", "真实。",
+        "10%。", "50%。", "100%。", "0%。", "红色。", "绿色。", "黑色。", "白色。", "灰色。", "彩色。",
+        "昨天。", "今天。", "明天。", "明年。", "瞬间。", "永恒。", "很快。", "很慢。", "极慢。", "飞速。",
+        "一个人。", "两个人。", "很多人。", "没活人。", "只有你。", "除了你。", "还有谁。", "没谁了。", "就是你。", "不是你。",
+        "秘密。", "公开。", "谎言。", "真相。", "迷雾。", "阳光。", "下雨。", "下雪。", "大风。", "晴朗。",
+        "稳住。", "浪点。", "乖点。", "疯点。", "怂点。", "勇点。", "甜点。", "苦点。", "辣点。", "酸点。",
+        "重来。", "继续。", "暂停。", "终止。", "开启。", "毁灭。", "创造。", "改变。", "维持。", "完结。"
+    ];
+
+    let isAnimating = false;
+
+    function flipBook() {
+        if (isAnimating) return;
+        const book = document.getElementById('book');
+        const arrow = document.getElementById('arrow');
+        const resetBtn = document.getElementById('reset');
+        const answerEl = document.getElementById('answer');
+
+        if (!book.classList.contains('open')) {
+            isAnimating = true;
+            // 随机生成答案
+            const randomAnswer = answers[Math.floor(Math.random() * answers.length)];
+            answerEl.innerText = randomAnswer;
+
+            book.classList.add('open');
+            arrow.style.visibility = 'hidden';
+            
+            setTimeout(() => {
+                resetBtn.style.visibility = 'visible';
+                isAnimating = false;
+            }, 800);
+        }
+    }
+
+    function resetBook() {
+        const book = document.getElementById('book');
+        const arrow = document.getElementById('arrow');
+        const resetBtn = document.getElementById('reset');
+
+        book.classList.remove('open');
+        resetBtn.style.visibility = 'hidden';
+        
+        setTimeout(() => {
+            arrow.style.visibility = 'visible';
+        }, 600);
+    }
+</script>
+</body>
+</html>
