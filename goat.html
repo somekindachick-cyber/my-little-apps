@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>像素风识羊大挑战</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+        }
+        #gameCanvas {
+            background-color: #fff;
+            border: 4px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            cursor: crosshair;
+        }
+        .instructions {
+            margin-top: 15px;
+            color: #666;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div class="instructions">
+        提示：岩羊的角更弯、毛色偏灰蓝；山羊毛色较浅，角较直。
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// 游戏状态
+let gameState = 'INTRO'; // INTRO, PLAYING, GAMEOVER
+let level = 1;
+let score = 0;
+let grid = [];
+let bharalIndex = -1;
+
+// 像素绘制函数
+function drawPixelGoat(x, y, size, isBharal) {
+    ctx.save();
+    ctx.translate(x, y);
+    const p = size / 10; // 基础像素单位
+
+    // 身体/脸部
+    ctx.fillStyle = isBharal ? "#7a8fa1" : "#d9c5b2"; // 岩羊偏蓝灰，山羊偏米色
+    ctx.fillRect(2*p, 3*p, 6*p, 5*p); 
+    
+    // 角
+    ctx.fillStyle = "#4a3c31";
+    if (isBharal) {
+        // 岩羊角：更粗，向两侧弯曲
+        ctx.fillRect(1*p, 1*p, 3*p, 2*p);
+        ctx.fillRect(6*p, 1*p, 3*p, 2*p);
+        ctx.fillRect(0, 2*p, 1*p, 2*p);
+        ctx.fillRect(9*p, 2*p, 1*p, 2*p);
+    } else {
+        // 山羊角：较细，向上
+        ctx.fillRect(3*p, 0, 1*p, 3*p);
+        ctx.fillRect(6*p, 0, 1*p, 3*p);
+    }
+
+    // 眼睛
+    ctx.fillStyle = "#000";
+    ctx.fillRect(3*p, 5*p, p, p);
+    ctx.fillRect(6*p, 5*p, p, p);
+
+    // 鼻子
+    ctx.fillStyle = "#ffb6c1";
+    ctx.fillRect(4.5*p, 7*p, p, 0.5*p);
+
+    ctx.restore();
+}
+
+function initLevel() {
+    const gridSize = level + 1; // Level 1: 2x2, Level 2: 3x3 (16个请看下文逻辑)
+    // 根据你的要求：L1=4(2x2), L2=16(4x4), L3=36(6x6)
+    const sideCount = level * 2; 
+    const totalSlots = sideCount * sideCount;
+    
+    grid = [];
+    bharalIndex = Math.floor(Math.random() * totalSlots);
+    
+    const padding = 50;
+    const availableSize = Math.min(canvas.width, canvas.height) - padding * 2;
+    const cellSize = availableSize / sideCount;
+
+    for (let i = 0; i < totalSlots; i++) {
+        const row = Math.floor(i / sideCount);
+        const col = i % sideCount;
+        grid.push({
+            x: (canvas.width - availableSize) / 2 + col * cellSize,
+            y: 100 + row * cellSize,
+            size: cellSize * 0.8,
+            isBharal: i === bharalIndex
+        });
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (gameState === 'INTRO') {
+        ctx.fillStyle = "#333";
+        ctx.font = "bold 40px Courier New";
+        ctx.textAlign = "center";
+        ctx.fillText("像素识羊挑战", canvas.width / 2, 100);
+
+        // 展示对比
+        ctx.font = "20px Courier New";
+        ctx.fillText("普通山羊", 250, 200);
+        drawPixelGoat(200, 220, 100, false);
+
+        ctx.fillText("高山岩羊", 550, 200);
+        drawPixelGoat(500, 220, 100, true);
+
+        ctx.fillStyle = "#666";
+        ctx.fillText("岩羊通常生活在陡峭岩壁，毛色与岩石接近", canvas.width / 2, 400);
+        ctx.fillStyle = "#000";
+        ctx.fillText("—— 点击屏幕开始挑战 ——", canvas.width / 2, 500);
+
+    } else if (gameState === 'PLAYING') {
+        ctx.fillStyle = "#333";
+        ctx.font = "24px Courier New";
+        ctx.textAlign = "left";
+        ctx.fillText(`关卡: ${level} (请找出岩羊)`, 50, 50);
+        ctx.textAlign = "right";
+        ctx.fillText(`得分: ${score}`, canvas.width - 50, 50);
+
+        grid.forEach(cell => {
+            drawPixelGoat(cell.x, cell.y, cell.size, cell.isBharal);
+        });
+
+    } else if (gameState === 'GAMEOVER') {
+        ctx.fillStyle = "red";
+        ctx.font = "bold 50px Courier New";
+        ctx.textAlign = "center";
+        ctx.fillText("找错了！", canvas.width / 2, canvas.height / 2 - 20);
+        ctx.fillStyle = "#333";
+        ctx.font = "24px Courier New";
+        ctx.fillText(`最终得分: ${score}`, canvas.width / 2, canvas.height / 2 + 40);
+        ctx.fillText("点击重新开始", canvas.width / 2, canvas.height / 2 + 100);
+    }
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    if (gameState === 'INTRO') {
+        gameState = 'PLAYING';
+        level = 1;
+        score = 0;
+        initLevel();
+    } else if (gameState === 'PLAYING') {
+        let clickedAny = false;
+        grid.forEach((cell, index) => {
+            if (mouseX >= cell.x && mouseX <= cell.x + cell.size &&
+                mouseY >= cell.y && mouseY <= cell.y + cell.size) {
+                if (cell.isBharal) {
+                    score += level * 10;
+                    level++;
+                    initLevel();
+                } else {
+                    gameState = 'GAMEOVER';
+                }
+                clickedAny = true;
+            }
+        });
+    } else if (gameState === 'GAMEOVER') {
+        gameState = 'INTRO';
+    }
+    draw();
+});
+
+// 初始绘制
+draw();
+</script>
+</body>
+</html>
