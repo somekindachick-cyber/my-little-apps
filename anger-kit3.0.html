@@ -722,5 +722,52 @@ function updateStats(){
 
 initLogin();
 </script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyA2rWGcDoQ75eKKksZMg_es3qx4CEFoQEg",
+    authDomain: "anger-kit.firebaseapp.com",
+    databaseURL: "https://anger-kit-default-rtdb.firebaseio.com",
+    projectId: "anger-kit",
+    storageBucket: "anger-kit.firebasestorage.app",
+    messagingSenderId: "220261443399",
+    appId: "1:220261443399:web:2a05fc45fc25b52bdd0e62"
+  };
+
+  // 1. 初始化
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // 2. 核心功能：当你的应用调用 saveLog() 时，自动同步到云端
+  // 我们“拦截”一下原本的 saveLog，让它具备联网能力
+  const originalSaveLog = window.saveLog; 
+  window.saveLog = function() {
+    if (originalSaveLog) originalSaveLog(); // 保留原有的本地保存功能
+    
+    // 获取当前用户名（假设你存在变量 currentUser 里，如果没有，请根据你代码修改）
+    const userId = localStorage.getItem('angerKit_currentUser') || 'default-user';
+    
+    // 把数据推送到 Firebase
+    set(ref(db, 'users/' + userId), {
+      logs: angerLog, // 你的愤怒日志数据
+      lastUpdate: new Date().getTime()
+    });
+    console.log("数据已同步至云端！");
+  };
+
+  // 3. 核心功能：启动时从云端下载最新数据
+  const userId = localStorage.getItem('angerKit_currentUser') || 'default-user';
+  onValue(ref(db, 'users/' + userId), (snapshot) => {
+    const data = snapshot.val();
+    if (data && data.logs) {
+      window.angerLog = data.logs; // 更新内存中的数据
+      if (window.updateStats) window.updateStats(); // 刷新界面显示
+      console.log("已同步其他设备的数据");
+    }
+  });
+</script>
 </body>
 </html>
