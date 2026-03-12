@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宇宙怪花生生成器</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #020408;
+    --nebula1: #ff2d78;
+    --nebula2: #00ffe7;
+    --nebula3: #ffe600;
+    --nebula4: #a855f7;
+    --nebula5: #ff6b00;
+    --star: #ffffff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--void);
+    color: var(--star);
+    font-family: 'Noto Sans SC', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  /* Starfield */
+  .starfield {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* Noise overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.15;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .container {
+    position: relative;
+    z-index: 2;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 50px;
+    animation: fadeDown 0.8s ease;
+  }
+
+  .title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(1.6rem, 5vw, 3rem);
+    font-weight: 900;
+    letter-spacing: 0.05em;
+    background: linear-gradient(135deg, var(--nebula2), var(--nebula1), var(--nebula3));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+    line-height: 1.2;
+  }
+
+  .subtitle {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: #556;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+  }
+
+  .gen-btn {
+    display: block;
+    margin: 0 auto 50px;
+    padding: 18px 60px;
+    font-family: 'Orbitron', monospace;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--void);
+    background: linear-gradient(135deg, var(--nebula2), var(--nebula4));
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 0 30px rgba(0,255,231,0.3), 0 0 60px rgba(168,85,247,0.2);
+    animation: fadeUp 0.8s 0.2s both;
+  }
+
+  .gen-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--nebula3), var(--nebula1));
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .gen-btn:hover { transform: scale(1.04); box-shadow: 0 0 50px rgba(0,255,231,0.5), 0 0 100px rgba(168,85,247,0.3); }
+  .gen-btn:hover::before { opacity: 1; }
+  .gen-btn:active { transform: scale(0.97); }
+  .gen-btn span { position: relative; z-index: 1; }
+
+  /* Card Grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 24px;
+  }
+
+  .card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 4px;
+    padding: 28px 20px 22px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.04) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .card:hover {
+    transform: translateY(-6px) scale(1.02);
+    border-color: rgba(0,255,231,0.3);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(0,255,231,0.1);
+  }
+
+  .card-svg-wrap {
+    width: 160px;
+    height: 160px;
+    margin: 0 auto 18px;
+    position: relative;
+  }
+
+  .card-svg-wrap svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 12px currentColor);
+    animation: floatPeanut 4s ease-in-out infinite;
+  }
+
+  .peanut-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+    background: linear-gradient(90deg, var(--nebula2), var(--nebula1));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .peanut-class {
+    font-size: 0.7rem;
+    color: var(--nebula3);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    opacity: 0.8;
+  }
+
+  .peanut-stats {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+
+  .stat-tag {
+    font-size: 0.65rem;
+    padding: 3px 8px;
+    border-radius: 1px;
+    letter-spacing: 0.1em;
+    border: 1px solid;
+    opacity: 0.85;
+  }
+
+  .peanut-bio {
+    font-size: 0.72rem;
+    color: #667;
+    line-height: 1.6;
+    font-style: italic;
+  }
+
+  .rarity-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-family: 'Orbitron', monospace;
+    font-size: 0.55rem;
+    padding: 3px 7px;
+    letter-spacing: 0.15em;
+    font-weight: 700;
+  }
+
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes popIn { from { opacity:0; transform:scale(0.7) rotate(-5deg); } to { opacity:1; transform:scale(1) rotate(0deg); } }
+  @keyframes floatPeanut { 0%,100%{transform:translateY(0) rotate(0deg);} 50%{transform:translateY(-8px) rotate(3deg);} }
+  @keyframes twinkle { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+  @keyframes orbit { from{transform:rotate(0deg) translateX(var(--r)) rotate(0deg);} to{transform:rotate(360deg) translateX(var(--r)) rotate(-360deg);} }
+</style>
+</head>
+<body>
+
+<canvas class="starfield" id="starfield"></canvas>
+
+<div class="container">
+  <header>
+    <div class="title">宇宙怪花生生成器</div>
+    <div class="subtitle">COSMIC FREAK PEANUT GENERATOR · SECTOR 7-Ω</div>
+  </header>
+
+  <button class="gen-btn" onclick="generatePeanuts()">
+    <span>⚡ 召唤怪花生 ⚡</span>
+  </button>
+
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+// Starfield
+(function() {
+  const canvas = document.getElementById('starfield');
+  const ctx = canvas.getContext('2d');
+  let W, H, stars = [];
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    stars = Array.from({length: 200}, () => ({
+      x: Math.random()*W, y: Math.random()*H,
+      r: Math.random()*1.5+0.2,
+      phase: Math.random()*Math.PI*2,
+      speed: Math.random()*0.02+0.005
+    }));
+  }
+
+  function draw(t) {
+    ctx.clearRect(0,0,W,H);
+    stars.forEach(s => {
+      s.phase += s.speed;
+      const a = 0.3 + 0.7*(0.5+0.5*Math.sin(s.phase));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,255,${a})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  requestAnimationFrame(draw);
+})();
+
+// Data
+const prefixes = ['暗物质','伽马射线','虚空','星云','脉冲星','量子','反物质','奇异','超新星','中子星','黑洞','混沌'];
+const suffixes = ['花生侠','花生君','花生神','花生魔','花生帝','花生灵','花生怪','花生王','花生煞','花生尊'];
+const classes = ['Ω级星际游荡者','次元穿梭体','混沌花生态','虚空孵化物','量子叠加花生','超维异变体','光锥突破者','时间晶体形态'];
+const traits = ['夜视眼×3','触手×7','光速放屁','反重力壳','隐身皮肤','念力豆荚','时间回溯','吸收暗能量','多维感知','宇宙共鸣'];
+const bios = [
+  '据说在宇宙大爆炸前就已存在，以光子为食，以引力波为床。',
+  '曾在NGC-4889星系举办独奏会，听众全部升华为纯能量。',
+  '身体每秒穿越三个平行宇宙，导致哲学家集体辞职。',
+  '其放出的气体含有未知元素，科学家命名为"花生素"。',
+  '能与黑洞进行心灵感应，但黑洞总是不回消息。',
+  '外壳温度等于绝对零度，却始终感到燥热。',
+  '曾被外星文明当作神明供奉，但它只想吃盐焗版自己。',
+  '每眨一次眼，附近星系的时间就倒流0.003秒。',
+  '拥有137个器官，其中136个功能不明，剩下一个是嘴。',
+  '科学家估算其智商为∞，但它只用来想吃什么。'
+];
+const rarities = [
+  {label:'◆ 传说', color:'#ffe600'},
+  {label:'◈ 史诗', color:'#a855f7'},
+  {label:'◇ 稀有', color:'#00ffe7'},
+  {label:'○ 普通', color:'#667'},
+];
+const tagColors = ['#ff2d78','#00ffe7','#ffe600','#a855f7','#ff6b00','#00ff88'];
+
+function rnd(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+function rndInt(a,b) { return Math.floor(Math.random()*(b-a+1))+a; }
+function rndColor() { return tagColors[Math.floor(Math.random()*tagColors.length)]; }
+function rndHex() {
+  const h = Math.floor(Math.random()*360);
+  return `hsl(${h},100%,60%)`;
+}
+
+function makePeanutSVG() {
+  const c1 = rndHex(), c2 = rndHex(), c3 = rndHex();
+  const eyeCount = rndInt(1,4);
+  const tentacleCount = rndInt(2,6);
+  const hasAura = Math.random() > 0.4;
+  const hasRings = Math.random() > 0.5;
+  const hasCrack = Math.random() > 0.5;
+  const hasSpots = Math.random() > 0.4;
+  const eyeColors = ['#ff2d78','#00ffe7','#ffe600','#ff6b00','#a855f7','#ffffff'];
+
+  let svg = `<svg viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg${Date.now()}" cx="40%" cy="35%">
+      <stop offset="0%" stop-color="${c1}" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="${c2}" stop-opacity="0.04"/>
+    </radialGradient>
+    <radialGradient id="body${Date.now()}" cx="35%" cy="30%">
+      <stop offset="0%" stop-color="${c1}"/>
+      <stop offset="60%" stop-color="${c2}"/>
+      <stop offset="100%" stop-color="${c3}"/>
+    </radialGradient>
+    <filter id="glow${Date.now()}">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>`;
+
+  const bid = `body${Date.now()}`;
+  const glowid = `glow${Date.now()}`;
+
+  // Aura
+  if (hasAura) {
+    svg += `<ellipse cx="80" cy="82" rx="52" ry="42" fill="none" stroke="${c1}" stroke-width="1" opacity="0.3"/>
+    <ellipse cx="80" cy="82" rx="62" ry="52" fill="none" stroke="${c2}" stroke-width="0.5" opacity="0.15"/>`;
+  }
+
+  // Rings
+  if (hasRings) {
+    const rc = rndHex();
+    svg += `<ellipse cx="80" cy="100" rx="48" ry="10" fill="none" stroke="${rc}" stroke-width="2" opacity="0.5" transform="rotate(-15,80,100)"/>`;
+  }
+
+  // Tentacles
+  for (let i=0; i<tentacleCount; i++) {
+    const angle = (i/tentacleCount)*Math.PI*2 - Math.PI/2;
+    const ex = 80 + Math.cos(angle)*55;
+    const ey = 82 + Math.sin(angle)*45;
+    const mx = 80 + Math.cos(angle+0.4)*70;
+    const my = 82 + Math.sin(angle+0.4)*60;
+    const tc = rndHex();
+    svg += `<path d="M${80+Math.cos(angle)*38},${82+Math.sin(angle)*32} Q${mx},${my} ${ex},${ey}" 
+      fill="none" stroke="${tc}" stroke-width="${Math.random()*2+1}" stroke-linecap="round" opacity="0.8"/>
+    <circle cx="${ex}" cy="${ey}" r="${Math.random()*3+1}" fill="${tc}" opacity="0.9"/>`;
+  }
+
+  // Peanut body: two lobes
+  svg += `<ellipse cx="72" cy="70" rx="28" ry="34" fill="url(#${bid})" stroke="${c1}" stroke-width="1.5" filter="url(#${glowid})"/>
+  <ellipse cx="90" cy="96" rx="24" ry="28" fill="url(#${bid})" stroke="${c2}" stroke-width="1.5" filter="url(#${glowid})"/>
+  <!-- waist -->
+  <ellipse cx="81" cy="83" rx="15" ry="8" fill="${c3}" opacity="0.6"/>`;
+
+  // Spots / texture
+  if (hasSpots) {
+    for (let i=0; i<5; i++) {
+      const sx = 58+Math.random()*44, sy = 50+Math.random()*50;
+      svg += `<circle cx="${sx}" cy="${sy}" r="${Math.random()*3+1}" fill="${rndHex()}" opacity="${Math.random()*0.4+0.2}"/>`;
+    }
+  }
+
+  // Cracks
+  if (hasCrack) {
+    svg += `<path d="M72,58 L68,70 L74,74 L70,85" fill="none" stroke="${c3}" stroke-width="1" opacity="0.6"/>`;
+  }
+
+  // Eyes on upper lobe
+  const eyePositions = [
+    [66,60],[76,55],[82,63],[70,68]
+  ].slice(0,eyeCount);
+  eyePositions.forEach(([ex,ey]) => {
+    const ec = rnd(eyeColors);
+    const pupilR = Math.random()*2.5+1;
+    svg += `<circle cx="${ex}" cy="${ey}" r="${pupilR+3}" fill="#000" opacity="0.8"/>
+    <circle cx="${ex}" cy="${ey}" r="${pupilR+2}" fill="${ec}" opacity="0.9"/>
+    <circle cx="${ex}" cy="${ey}" r="${pupilR}" fill="#000"/>
+    <circle cx="${ex-1}" cy="${ey-1}" r="${pupilR*0.4}" fill="#fff" opacity="0.9"/>`;
+  });
+
+  // Mouth
+  const mouthTypes = [
+    `<path d="M84,98 Q90,104 96,98" fill="none" stroke="${c1}" stroke-width="2" stroke-linecap="round"/>`,
+    `<path d="M84,102 Q90,96 96,102" fill="none" stroke="${c2}" stroke-width="2" stroke-linecap="round"/>`,
+    `<path d="M85,100 L87,96 L89,100 L91,96 L93,100 L95,96" fill="none" stroke="${c3}" stroke-width="1.5" stroke-linejoin="round"/>`,
+  ];
+  svg += rnd(mouthTypes);
+
+  svg += `</svg>`;
+  return svg;
+}
+
+function generatePeanuts() {
+  const grid = document.getElementById('grid');
+  const count = rndInt(3,6);
+  grid.innerHTML = '';
+
+  for (let i=0; i<count; i++) {
+    setTimeout(() => {
+      const name = rnd(prefixes) + rnd(suffixes);
+      const cls = rnd(classes);
+      const rarity = rarities[Math.floor(Math.pow(Math.random(),1.5)*rarities.length)];
+      const numTraits = rndInt(2,4);
+      const cardTraits = [...traits].sort(()=>Math.random()-0.5).slice(0,numTraits);
+      const bio = rnd(bios);
+      const floatDelay = (Math.random()*3).toFixed(1);
+
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.animationDelay = `${i*0.08}s`;
+      card.innerHTML = `
+        <div class="rarity-badge" style="color:${rarity.color};border:1px solid ${rarity.color};background:${rarity.color}18">
+          ${rarity.label}
+        </div>
+        <div class="card-svg-wrap" style="animation-delay:${floatDelay}s">
+          ${makePeanutSVG()}
+        </div>
+        <div class="peanut-name">${name}</div>
+        <div class="peanut-class">${cls}</div>
+        <div class="peanut-stats">
+          ${cardTraits.map(t => {
+            const c = rndColor();
+            return `<span class="stat-tag" style="color:${c};border-color:${c}30;background:${c}10">${t}</span>`;
+          }).join('')}
+        </div>
+        <div class="peanut-bio">${bio}</div>
+      `;
+      grid.appendChild(card);
+    }, i*80);
+  }
+}
+
+// Auto-generate on load
+generatePeanuts();
+</script>
+</body>
+</html>
