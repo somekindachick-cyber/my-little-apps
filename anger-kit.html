@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>😤 生气急救器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0f;font-family:'Press Start 2P',monospace;color:#e0e0e0;image-rendering:pixelated}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.07) 2px,rgba(0,0,0,.07) 4px);pointer-events:none;z-index:999}
+
+/* ── LOGIN ── */
+#login{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px}
+.login-box{background:#0d1117;border:3px solid #FF6B6B;padding:28px 20px;max-width:300px;width:100%;text-align:center;box-shadow:0 0 30px #FF6B6B44}
+.login-icon{font-size:36px;margin-bottom:12px}
+.login-title{font-size:9px;color:#FF6B6B;text-shadow:2px 2px 0 #7B0000,0 0 16px #FF000088;margin-bottom:8px;letter-spacing:2px}
+.login-sub{font-size:5px;color:#666;margin-bottom:20px;line-height:2}
+.login-input{background:#111;border:2px solid #444;color:#eee;font-family:'Press Start 2P',monospace;font-size:7px;padding:8px 10px;width:100%;margin-bottom:12px;outline:none;letter-spacing:1px}
+.login-input:focus{border-color:#FF6B6B;box-shadow:0 0 8px #FF6B6B66}
+.login-input.shake{animation:shake .4s}
+.login-btn{background:transparent;border:2px solid #FF6B6B;color:#FF6B6B;font-family:'Press Start 2P',monospace;font-size:7px;padding:8px 20px;cursor:pointer;width:100%;letter-spacing:2px;transition:all .1s}
+.login-btn:hover{background:#FF6B6B22;transform:translateY(-1px)}
+.known-section{margin-top:16px;padding-top:12px;border-top:1px solid #222}
+.known-label{font-size:5px;color:#555;margin-bottom:8px}
+.known-list{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.known-chip{background:#111;border:1px solid #444;color:#aaa;font-family:'Press Start 2P',monospace;font-size:5px;padding:4px 8px;cursor:pointer;transition:all .1s}
+.known-chip:hover{border-color:#FF6B6B;color:#FF6B6B}
+
+/* ── MAIN ── */
+#app{display:none;flex-direction:column;align-items:center;min-height:100vh;padding:16px 12px 40px}
+.title{font-size:9px;color:#FF6B6B;text-shadow:2px 2px 0 #7B0000,0 0 20px #FF000088;letter-spacing:2px;margin-bottom:6px;text-align:center}
+.subtitle{font-size:5px;color:#666;margin-bottom:6px;letter-spacing:1px}
+.user-bar{font-size:5px;color:#555;margin-bottom:16px;display:flex;gap:12px;align-items:center}
+.logout-btn{background:transparent;border:1px solid #333;color:#555;font-family:'Press Start 2P',monospace;font-size:4px;padding:3px 6px;cursor:pointer}
+.logout-btn:hover{border-color:#FF6B6B;color:#FF6B6B}
+
+.stats{display:flex;gap:16px;margin-bottom:20px;background:#111;border:2px solid #333;padding:8px 14px}
+.stat{font-size:6px;color:#aaa;text-align:center}
+.stat-num{font-size:14px;color:#FF6B6B;display:block;margin-top:4px;text-shadow:0 0 10px #FF0000}
+
+/* ── BIG BUTTON ── */
+.btn-wrap{position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:20px;width:160px;height:160px}
+.btn-ring{position:absolute;width:130px;height:130px;border:4px solid #FF0000;border-radius:50%;animation:ring-pulse 2s infinite;box-shadow:0 0 20px #FF000066;pointer-events:none}
+.btn-ring2{position:absolute;width:150px;height:150px;border:2px solid #880000;border-radius:50%;animation:ring-pulse 2s infinite .4s;pointer-events:none}
+.big-btn{width:110px;height:110px;border-radius:50%;background:radial-gradient(circle at 38% 35%,#FF5252,#CC0000,#7B0000);border:4px solid #FF0000;box-shadow:0 0 30px #FF000099,inset 0 -4px 0 #550000,inset 0 4px 8px #FF7777;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:'Press Start 2P',monospace;font-size:7px;color:#FFE0E0;text-shadow:1px 1px 0 #550000;position:relative;z-index:2;user-select:none;transition:transform .08s,box-shadow .08s;letter-spacing:1px}
+.big-btn:active{transform:scale(.93);box-shadow:0 0 10px #FF000066,inset 0 4px 0 #550000}
+.big-btn.shake{animation:shake .4s}
+.big-btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-icon{font-size:24px;margin-bottom:4px}
+
+/* ── SOOTHING ── */
+.sooth-panel{background:#0d1117;border:3px solid #4A90D9;padding:14px;width:100%;max-width:320px;margin-bottom:16px;box-shadow:0 0 20px #4A90D966;animation:panel-in .3s ease-out;text-align:center}
+.sprite-wrap{display:flex;justify-content:center;margin-bottom:10px}
+canvas.sprite{image-rendering:pixelated;width:128px;height:128px}
+.sprite-name{font-size:6px;color:#80CBC4;margin-bottom:10px}
+.msg-zh{font-size:9px;color:#FFD54F;line-height:1.8;margin-bottom:6px;text-shadow:0 0 10px #FF980088}
+.msg-en{font-size:5px;color:#666;line-height:2}
+
+/* ── CLEANSING ── */
+.clean-panel{background:#100a00;border:3px solid #FF5722;padding:14px;width:100%;max-width:320px;margin-bottom:16px;box-shadow:0 0 30px #FF572266;text-align:center}
+.clean-title{font-size:8px;color:#FF5722;margin-bottom:8px;animation:flicker .8s infinite}
+canvas.clean{image-rendering:pixelated;background:#0d0500;border:2px solid #333;display:block;margin:0 auto}
+.clean-sub{font-size:5px;color:#888;margin-top:8px;min-height:12px}
+
+/* ── DONE ── */
+.done-panel{background:#001a0a;border:3px solid #69F0AE;padding:16px;width:100%;max-width:320px;margin-bottom:16px;box-shadow:0 0 30px #69F0AE44;text-align:center;animation:panel-in .4s}
+.done-title{font-size:7px;color:#69F0AE;margin-bottom:8px;text-shadow:0 0 12px #00FF88}
+.done-stars{font-size:20px;margin:8px 0;letter-spacing:4px}
+.done-sub{font-size:5px;color:#888;line-height:1.8}
+
+/* ── ACTIONS ── */
+.action-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;justify-content:center}
+.pixel-btn{font-family:'Press Start 2P',monospace;font-size:5px;padding:6px 8px;border:2px solid;background:transparent;cursor:pointer;transition:all .1s;letter-spacing:1px}
+.pixel-btn:hover{filter:brightness(1.3);transform:translateY(-1px)}
+.btn-orange{color:#FF9800;border-color:#FF9800}
+.btn-teal{color:#80CBC4;border-color:#80CBC4}
+.btn-gold{color:#FFD700;border-color:#FFD700}
+
+/* ── HISTORY ── */
+.history{width:100%;max-width:320px;margin-bottom:12px}
+.history-title{font-size:6px;color:#888;margin-bottom:8px}
+.history-days{display:flex;flex-wrap:wrap;gap:4px}
+.hist-day{font-size:5px;padding:3px 4px;border:1px solid #333;color:#aaa;background:#111}
+.hist-day.red{border-color:#FF6B6B;color:#FF6B6B}
+.hist-day.gold{border-color:#FFD700}
+
+.footer{font-size:4px;color:#2a2a2a;text-align:center;margin-top:8px}
+
+/* ── PARTICLES ── */
+.particle{position:absolute;width:6px;height:6px;pointer-events:none;border-radius:0;animation:pfly 1.2s forwards ease-out}
+@keyframes pfly{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--tx),var(--ty)) scale(0)}}
+
+/* ── DECO ── */
+.deco{position:fixed;width:4px;height:4px;pointer-events:none;z-index:0}
+
+/* ── KEYFRAMES ── */
+@keyframes ring-pulse{0%,100%{transform:scale(1);opacity:.6}50%{transform:scale(1.08);opacity:1}}
+@keyframes panel-in{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes flicker{0%,100%{opacity:1}50%{opacity:.7}}
+@keyframes shake{0%,100%{transform:scale(1) rotate(0)}20%{transform:scale(.95) rotate(-3deg)}40%{transform:scale(1.05) rotate(3deg)}60%{transform:scale(.97) rotate(-2deg)}80%{transform:scale(1.02) rotate(2deg)}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-box">
+    <div class="login-icon">💢</div>
+    <div class="login-title">生气急救器</div>
+    <div class="login-sub">输入你的名字<br/>记录属于你自己的怒气</div>
+    <input id="nameInput" class="login-input" placeholder="你叫什么..." maxlength="12"/>
+    <button class="login-btn" onclick="doLogin()">进入 ▶</button>
+    <div class="known-section" id="knownSection" style="display:none">
+      <div class="known-label">— 快速登录 —</div>
+      <div class="known-list" id="knownList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- deco pixels -->
+  <div class="deco" id="d0" style="left:5%;top:10%"></div>
+  <div class="deco" id="d1" style="left:90%;top:20%"></div>
+  <div class="deco" id="d2" style="left:15%;top:60%"></div>
+  <div class="deco" id="d3" style="left:80%;top:70%"></div>
+  <div class="deco" id="d4" style="left:10%;top:85%"></div>
+  <div class="deco" id="d5" style="left:88%;top:40%"></div>
+
+  <h1 class="title">😤 生气急救器 😤</h1>
+  <p class="subtitle">ANGER EMERGENCY KIT · 8-BIT EDITION</p>
+  <div class="user-bar">
+    <span id="userLabel"></span>
+    <button class="logout-btn" onclick="doLogout()">切换用户</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat">今日<span class="stat-num" id="todayCount">0</span></div>
+    <div class="stat" style="border-left:2px solid #333;padding-left:16px">本月<span class="stat-num" id="monthCount">0</span></div>
+  </div>
+
+  <div class="btn-wrap" id="btnWrap">
+    <div class="btn-ring2"></div>
+    <div class="btn-ring"></div>
+    <button class="big-btn" id="bigBtn" onclick="handlePress()">
+      <span class="btn-icon">💢</span>
+      <span>按我！</span>
+      <span style="font-size:5px;color:#FF8888;margin-top:2px">PRESS</span>
+    </button>
+  </div>
+
+  <!-- sprite idle -->
+  <div id="idleWrap" style="margin-bottom:16px;text-align:center">
+    <canvas id="idleCanvas" width="64" height="64" class="sprite" style="opacity:.4"></canvas>
+  </div>
+
+  <!-- soothing -->
+  <div class="sooth-panel" id="soothPanel" style="display:none">
+    <div class="sprite-wrap"><canvas id="soothCanvas" width="64" height="64" class="sprite"></canvas></div>
+    <div class="sprite-name" id="spriteName"></div>
+    <div class="msg-zh" id="msgZh"></div>
+    <div class="msg-en" id="msgEn"></div>
+  </div>
+
+  <!-- cleansing -->
+  <div class="clean-panel" id="cleanPanel" style="display:none">
+    <div class="clean-title">🔥 恶灵退散仪式 🔥</div>
+    <canvas id="cleanCanvas" width="200" height="120" class="clean" style="width:200px;height:120px"></canvas>
+    <div class="clean-sub" id="cleanSub">召唤今日之怒...</div>
+  </div>
+
+  <!-- done -->
+  <div class="done-panel" id="donePanel" style="display:none">
+    <div class="done-title">✨ 今日净化完成 ✨</div>
+    <div class="done-stars">⭐🌟💫✨🌠</div>
+    <div class="done-sub" id="doneSub"></div>
+  </div>
+
+  <!-- actions -->
+  <div class="action-row" id="actionRow">
+    <button class="pixel-btn btn-orange" id="cleanBtn" style="display:none" onclick="startCleansing()">🔥 今日净化</button>
+    <button class="pixel-btn btn-teal" id="resetBtn" style="display:none" onclick="resetDay()">🌱 重置今日</button>
+    <button class="pixel-btn btn-gold" onclick="toggleHistory()">📅 月度记录</button>
+  </div>
+
+  <!-- history -->
+  <div class="history" id="historyPanel" style="display:none">
+    <div class="history-title" id="histTitle"></div>
+    <div class="history-days" id="histDays"></div>
+    <div style="font-size:4px;color:#444;margin-top:8px" id="histFooter"></div>
+  </div>
+
+  <div class="footer">DATA STORED LOCALLY · 你的秘密由你保管</div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const MESSAGES = [
+  {zh:"这不是你的课题",          en:"This is not your lesson to carry"},
+  {zh:"这是他的问题，不是你的",   en:"Their problem, not yours"},
+  {zh:"你不必为此付出代价",       en:"You owe nothing for their chaos"},
+  {zh:"放下，你才是自由的",       en:"Release it — freedom awaits"},
+  {zh:"你已经做得足够好了",       en:"You have done enough"},
+  {zh:"愤怒是云，你是天空",       en:"Anger is clouds. You are the sky."},
+  {zh:"他们的火，烧不到你",       en:"Their fire cannot reach you"},
+  {zh:"呼吸。这一刻会过去",       en:"Breathe. This moment will pass."},
+  {zh:"你的平静比他们的噪音更有力", en:"Your peace outpowers their noise"},
+  {zh:"今天的怒气，明天是笑谈",   en:"Today's rage, tomorrow's story"},
+  {zh:"你不需要赢得每一场战",     en:"Not every battle needs your sword"},
+  {zh:"慈悲自己，如同慈悲他人",   en:"Grant yourself the grace you give others"},
+];
+const SPRITE_NAMES = ["佛陀","天使","莲花","菩萨"];
+const DECO_COLORS  = ["#FF6B6B","#FFD700","#6BCB77","#4D96FF","#FF6BFF","#80CBC4"];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let currentUser = "";
+let angerLog    = {};
+let mode        = "idle";   // idle | soothing | cleansing | done | history
+let tick        = 0;
+let spriteIdx   = 0;
+let tickRaf     = null;
+let cleanTimer  = null;
+let cleanPhase  = 0;
+let soothTimer  = null;
+let activeCanvas = null;  // which canvas is getting sprite drawn
+
+function storageKey(u){ return "angerLog_" + u.trim().toLowerCase(); }
+function today(){ return new Date().toISOString().slice(0,10); }
+function thisMonth(){ return new Date().toISOString().slice(0,7); }
+
+function loadLog(){
+  try { angerLog = JSON.parse(localStorage.getItem(storageKey(currentUser)) || "{}"); }
+  catch { angerLog = {}; }
+}
+function saveLog(){
+  try { localStorage.setItem(storageKey(currentUser), JSON.stringify(angerLog)); } catch {}
+}
+function todayCount(){ return angerLog[today()] || 0; }
+function monthCount(){
+  const m = thisMonth();
+  return Object.entries(angerLog).filter(([k])=>k.startsWith(m)).reduce((s,[,v])=>s+v,0);
+}
+
+// ── LOGIN ─────────────────────────────────────────────────────────────────────
+function initLogin(){
+  const saved = localStorage.getItem("angerKit_currentUser");
+  if(saved){ enterApp(saved); return; }
+  try {
+    const users = JSON.parse(localStorage.getItem("angerKit_users") || "[]");
+    if(users.length){
+      const sec = document.getElementById("knownSection");
+      const list = document.getElementById("knownList");
+      sec.style.display = "block";
+      list.innerHTML = "";
+      users.forEach(u=>{
+        const btn = document.createElement("button");
+        btn.className = "known-chip";
+        btn.textContent = u;
+        btn.onclick = ()=>enterApp(u);
+        list.appendChild(btn);
+      });
+    }
+  } catch {}
+  document.getElementById("nameInput").addEventListener("keydown",e=>{
+    if(e.key==="Enter") doLogin();
+  });
+}
+
+function doLogin(){
+  const name = document.getElementById("nameInput").value.trim();
+  if(!name){
+    const inp = document.getElementById("nameInput");
+    inp.classList.add("shake");
+    setTimeout(()=>inp.classList.remove("shake"),500);
+    return;
+  }
+  enterApp(name);
+}
+
+function enterApp(name){
+  currentUser = name;
+  try {
+    localStorage.setItem("angerKit_currentUser", name);
+    const users = JSON.parse(localStorage.getItem("angerKit_users") || "[]");
+    if(!users.includes(name)){
+      localStorage.setItem("angerKit_users", JSON.stringify([...users, name]));
+    }
+  } catch {}
+  loadLog();
+  document.getElementById("login").style.display = "none";
+  const app = document.getElementById("app");
+  app.style.display = "flex";
+  document.getElementById("userLabel").textContent = "👤 " + name;
+  updateStats();
+  startTicker();
+  setMode("idle");
+}
+
+function doLogout(){
+  stopTicker();
+  try { localStorage.removeItem("angerKit_currentUser"); } catch {}
+  currentUser = "";
+  angerLog = {};
+  document.getElementById("app").style.display = "none";
+  document.getElementById("login").style.display = "flex";
+  document.getElementById("nameInput").value = "";
+}
+
+// ── TICKER ────────────────────────────────────────────────────────────────────
+function startTicker(){
+  if(tickRaf) cancelAnimationFrame(tickRaf);
+  function loop(){
+    tick++;
+    drawSprite();
+    animateDeco();
+    if(mode==="cleansing") drawClean();
+    tickRaf = requestAnimationFrame(loop);
+  }
+  tickRaf = requestAnimationFrame(loop);
+}
+function stopTicker(){
+  if(tickRaf){ cancelAnimationFrame(tickRaf); tickRaf=null; }
+}
+
+// ── DECO ──────────────────────────────────────────────────────────────────────
+function animateDeco(){
+  for(let i=0;i<6;i++){
+    const el = document.getElementById("d"+i);
+    if(el) el.style.background = DECO_COLORS[i] + Math.floor(30 + ((tick+i*20)%60)/60*80).toString(16).padStart(2,"0");
+  }
+}
+
+// ── SPRITES ───────────────────────────────────────────────────────────────────
+function drawSprite(){
+  const c = mode === "soothing" ? document.getElementById("soothCanvas")
+                                : document.getElementById("idleCanvas");
+  if(!c) return;
+  const ctx = c.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  const fn = [drawBuddha, drawAngel, drawLotus, drawBodhisattva][spriteIdx];
+  fn(ctx, tick);
+}
+
+function P(ctx, x, y, col, scale=2){
+  ctx.fillStyle = col;
+  ctx.fillRect(x*scale, y*scale, scale, scale);
+}
+
+function drawBuddha(ctx, t){
+  ctx.clearRect(0,0,64,64);
+  const gold="#FFD700",skin="#F4C98A",robe="#FF8C00",halo="#FFF176",lotus="#FF69B4",lg="#66BB6A";
+  const pulse = .5+.5*Math.sin(t*.05);
+  ctx.globalAlpha=.3+pulse*.4; ctx.fillStyle=halo;
+  ctx.beginPath(); ctx.arc(32,22,16,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  [[13,6],[14,6],[15,6],[16,6],[17,6],[13,7],[17,7],[13,8],[14,8],[15,8],[16,8],[17,8],[14,9],[15,9],[16,9],[14,10],[15,10],[16,10]].forEach(([x,y])=>P(ctx,x,y,skin));
+  [[14,5],[15,5],[16,5]].forEach(([x,y])=>P(ctx,x,y,gold));
+  P(ctx,14,8,"#333"); P(ctx,16,8,"#333");
+  P(ctx,14,10,"#c97"); P(ctx,16,10,"#c97");
+  for(let y=11;y<=18;y++) for(let x=11;x<=19;x++) P(ctx,x,y,robe);
+  [[14,12],[15,12],[16,12],[15,13]].forEach(([x,y])=>P(ctx,x,y,gold));
+  [[13,15],[14,15],[13,16],[14,16],[16,15],[17,15],[16,16],[17,16]].forEach(([x,y])=>P(ctx,x,y,skin));
+  const lx=15,ly=20;
+  [[lx-2,ly],[lx-1,ly],[lx,ly],[lx+1,ly],[lx+2,ly],[lx-1,ly+1],[lx,ly+1],[lx+1,ly+1],[lx-3,ly-1],[lx+3,ly-1]].forEach(([x,y])=>P(ctx,x,y,lotus));
+  [[lx-1,ly-1],[lx,ly-1],[lx+1,ly-1]].forEach(([x,y])=>P(ctx,x,y,lg));
+  if(Math.floor(t/10)%2===0) [[10,4],[20,6],[11,17],[21,14]].forEach(([x,y])=>P(ctx,x,y,"#FFF"));
+}
+
+function drawAngel(ctx, t){
+  ctx.clearRect(0,0,64,64);
+  const skin="#FDDBB4",white="#ECEFF1",halo="#FFE082",wing="#E3F2FD";
+  const bob=Math.floor(t/15)%2;
+  [[13,3],[14,3],[15,3],[16,3],[17,3]].forEach(([x,y])=>P(ctx,x,y+bob,halo));
+  [[8,10],[9,10],[9,9],[10,9],[10,8],[20,8],[21,9],[21,10],[22,10],[8,11],[9,11],[9,12],[10,12],[20,12],[21,11],[22,11]].forEach(([x,y])=>P(ctx,x,y,wing));
+  [[13,10],[14,10],[15,10],[16,10],[17,10],[12,11],[13,11],[14,11],[15,11],[16,11],[17,11],[18,11],[12,12],[18,12],[13,13],[17,13],[14,14],[15,14],[16,14]].forEach(([x,y])=>P(ctx,x,y,white));
+  [[13,6],[14,6],[15,6],[16,6],[17,6],[13,7],[17,7],[13,8],[14,8],[15,8],[16,8],[17,8],[14,9],[15,9],[16,9]].forEach(([x,y])=>P(ctx,x,y,skin));
+  P(ctx,14,7,"#333"); P(ctx,16,7,"#333"); P(ctx,15,9,"#F48FB1");
+  const s=Math.floor(t/8)%3;
+  if(s===0) P(ctx,10,7,"#FFF"); if(s===1) P(ctx,20,5,"#FFF"); if(s===2) P(ctx,9,14,"#FFF");
+}
+
+function drawLotus(ctx, t){
+  ctx.clearRect(0,0,64,64);
+  const p1="#F48FB1",p2="#F8BBD0",p3="#E91E8C",water="#81D4FA",leaf="#66BB6A",ctr="#FFF176";
+  const r=Math.floor(t/12)%3;
+  for(let x=8;x<=22;x++) P(ctx,x,21,water);
+  for(let x=9;x<=21;x++) P(ctx,x,22,r===0?"#64B5F6":water);
+  for(let x=10;x<=20;x++) P(ctx,x,23,water);
+  [[15,18],[15,19],[15,20]].forEach(([x,y])=>P(ctx,x,y,leaf));
+  [[12,17],[13,17],[11,18],[12,18],[17,17],[18,17],[18,18],[19,18]].forEach(([x,y])=>P(ctx,x,y,leaf));
+  [[14,13],[15,13],[16,13],[13,14],[17,14],[13,15],[17,15],[12,15],[18,15],[12,16],[18,16]].forEach(([x,y])=>P(ctx,x,y,p2));
+  [[14,12],[15,12],[16,12],[13,13],[17,13],[13,14],[17,14]].forEach(([x,y])=>P(ctx,x,y,p1));
+  [[14,11],[15,11],[16,11],[14,12],[16,12]].forEach(([x,y])=>P(ctx,x,y,p3));
+  [[15,10],[14,11],[15,11],[16,11],[15,12]].forEach(([x,y])=>P(ctx,x,y,ctr));
+  const sp=Math.floor(t/10)%4;
+  if(sp===0){P(ctx,11,11,"#FFF");P(ctx,20,14,"#FFF");} if(sp===1){P(ctx,12,10,"#FFF");P(ctx,19,11,"#FFF");} if(sp===2){P(ctx,10,15,"#FFF");P(ctx,21,13,"#FFF");}
+}
+
+function drawBodhisattva(ctx, t){
+  ctx.clearRect(0,0,64,64);
+  const skin="#F4C98A",robe="#7E57C2",gold="#FFD700",jewel="#E91E63",crown="#FFB300",halo="#FFF9C4";
+  ctx.globalAlpha=.25+.25*Math.sin(t*.04); ctx.fillStyle=halo;
+  ctx.beginPath(); ctx.arc(32,16,18,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  [[13,3],[14,3],[15,3],[16,3],[17,3],[15,2]].forEach(([x,y])=>P(ctx,x,y,crown));
+  P(ctx,15,2,jewel);
+  [[13,5],[14,5],[15,5],[16,5],[17,5],[13,6],[17,6],[13,7],[14,7],[15,7],[16,7],[17,7],[14,8],[15,8],[16,8]].forEach(([x,y])=>P(ctx,x,y,skin));
+  P(ctx,14,6,"#333"); P(ctx,16,6,"#333"); P(ctx,15,8,jewel);
+  for(let y=9;y<=18;y++) for(let x=11+(y>13?1:0);x<=19-(y>13?1:0);x++) P(ctx,x,y,robe);
+  [[13,9],[14,9],[15,9],[16,9],[17,9],[12,13],[18,13]].forEach(([x,y])=>P(ctx,x,y,gold));
+  [[18,10],[19,10],[18,9],[19,9],[18,8]].forEach(([x,y])=>P(ctx,x,y,skin));
+  [[12,14],[13,14],[12,15],[13,15],[12,16],[13,16]].forEach(([x,y])=>P(ctx,x,y,skin));
+  [[11,16],[12,16],[13,16],[11,17],[13,17],[11,18],[12,18],[13,18]].forEach(([x,y])=>P(ctx,x,y,"#81D4FA"));
+  const jt=Math.floor(t/8)%3;
+  [[9,7],[21,8],[10,15]].forEach(([x,y],i)=>{ if(i===jt) P(ctx,x,y,jewel); });
+}
+
+// ── SKULL + FIRE ──────────────────────────────────────────────────────────────
+function drawSkull(ctx, x, y, scale){
+  const P2=(px,py,c)=>{ctx.fillStyle=c;ctx.fillRect(x+px*scale,y+py*scale,scale,scale)};
+  [[1,0],[2,0],[3,0],[0,1],[4,1],[0,2],[4,2],[0,3],[1,3],[2,3],[3,3],[4,3],[1,4],[3,4],[1,5],[2,5],[3,5]].forEach(([px,py])=>P2(px,py,"#F5F5F5"));
+  [[1,1],[2,1],[3,1],[1,2],[2,2],[3,2]].forEach(([px,py])=>P2(px,py,"#ECEFF1"));
+  P2(1,2,"#333"); P2(3,2,"#333"); P2(2,4,"#bbb");
+}
+function drawFire(ctx, x, y, t, scale){
+  const f=Math.floor(t/3)%4;
+  const cols=["#FF5722","#FF9800","#FFEB3B","#FF7043"];
+  const fp=[[[1,3],[2,2],[3,3],[2,3],[1,2],[3,2],[2,1]],[[1,3],[2,3],[3,3],[1,2],[3,2],[2,2],[2,1],[1,1]],[[1,3],[2,3],[3,3],[2,2],[1,2],[3,1],[2,1]],[[1,3],[2,3],[3,3],[1,2],[2,2],[3,2],[2,1],[3,1]]];
+  fp[f].forEach(([px,py],i)=>{ctx.fillStyle=cols[i%4];ctx.fillRect(x+px*scale,y+py*scale,scale,scale)});
+}
+
+// ── CLEANSING CANVAS ──────────────────────────────────────────────────────────
+function drawClean(){
+  const canvas = document.getElementById("cleanCanvas");
+  if(!canvas) return;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0,0,200,120);
+  const count = Math.min(todayCount(), 8);
+  const sub = document.getElementById("cleanSub");
+  if(cleanPhase < 60){
+    if(sub) sub.textContent = "召唤今日之怒...";
+    for(let i=0;i<count;i++){
+      const progress = Math.min(1, cleanPhase/40);
+      const ty = 60 - progress*50;
+      drawSkull(ctx, 10+i*22, ty, 3);
+    }
+  } else if(cleanPhase < 120){
+    if(sub) sub.textContent = "🔥 火焰净化中...";
+    const fp = cleanPhase - 60;
+    for(let i=0;i<count;i++){
+      const ratio = Math.max(0, 1 - fp/60 - i*.08);
+      if(ratio > .1){ ctx.globalAlpha=ratio; drawSkull(ctx,10+i*22,10,3); ctx.globalAlpha=1; }
+      drawFire(ctx, 10+i*22, 15, tick, 3);
+    }
+    for(let s=0;s<5;s++){
+      ctx.fillStyle=["#FFD700","#FF5722","#FFF"][s%3];
+      ctx.fillRect((s*37+tick*3)%190, (s*23+tick*2)%100, 2, 2);
+    }
+  } else {
+    if(sub) sub.textContent = "✨ 愤怒已化为星光 ✨";
+    const sp = cleanPhase - 120;
+    for(let s=0;s<24;s++){
+      ctx.fillStyle=["#FFD700","#E040FB","#00E5FF","#FFF","#69F0AE"][s%5];
+      const ss = sp>30 ? 4 : 2;
+      ctx.fillRect((s*13+sp*2)%190, (s*7+sp)%100, ss, ss);
+    }
+    ctx.fillStyle="#FFD700";
+    ctx.font="8px 'Press Start 2P',monospace";
+    ctx.fillText("✨ PURIFIED ✨", 22, 65);
+  }
+}
+
+// ── PRESS ─────────────────────────────────────────────────────────────────────
+function handlePress(){
+  if(mode==="cleansing") return;
+  const btn = document.getElementById("bigBtn");
+  btn.classList.add("shake");
+  setTimeout(()=>btn.classList.remove("shake"), 500);
+
+  const key = today();
+  angerLog[key] = (angerLog[key] || 0) + 1;
+  saveLog();
+  updateStats();
+
+  const mi = Math.floor(Math.random()*MESSAGES.length);
+  const si = Math.floor(Math.random()*4);
+  spriteIdx = si;
+  document.getElementById("spriteName").textContent = "— " + SPRITE_NAMES[si] + " 降临 —";
+  document.getElementById("msgZh").textContent = MESSAGES[mi].zh;
+  document.getElementById("msgEn").textContent = MESSAGES[mi].en;
+
+  spawnParticles();
+
+  setMode("soothing");
+  if(soothTimer) clearTimeout(soothTimer);
+  soothTimer = setTimeout(()=>setMode("idle"), 8000);
+}
+
+function spawnParticles(){
+  const wrap = document.getElementById("btnWrap");
+  const colors=["#FF6B6B","#FFD93D","#6BCB77","#4D96FF","#FF6BFF"];
+  for(let i=0;i<12;i++){
+    const el = document.createElement("div");
+    el.className = "particle";
+    const vx=(Math.random()-.5)*10, vy=(Math.random()-.5)*10;
+    el.style.cssText = `background:${colors[i%5]};left:50%;top:50%;--tx:${vx*60}px;--ty:${vy*60}px`;
+    wrap.appendChild(el);
+    setTimeout(()=>el.remove(), 1300);
+  }
+}
+
+// ── CLEANSING ─────────────────────────────────────────────────────────────────
+function startCleansing(){
+  if(todayCount()===0) return;
+  setMode("cleansing");
+  cleanPhase = 0;
+  if(cleanTimer) clearInterval(cleanTimer);
+  cleanTimer = setInterval(()=>{
+    cleanPhase++;
+    if(cleanPhase > 200){
+      clearInterval(cleanTimer);
+      setMode("done");
+    }
+  }, 30);
+}
+
+function resetDay(){
+  delete angerLog[today()];
+  saveLog();
+  updateStats();
+  setMode("idle");
+}
+
+// ── MODE ──────────────────────────────────────────────────────────────────────
+function setMode(m){
+  mode = m;
+  const idle   = document.getElementById("idleWrap");
+  const sooth  = document.getElementById("soothPanel");
+  const clean  = document.getElementById("cleanPanel");
+  const done   = document.getElementById("donePanel");
+  const cleanBtn = document.getElementById("cleanBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  idle.style.display  = m==="idle"      ? "block" : "none";
+  sooth.style.display = m==="soothing"  ? "block" : "none";
+  clean.style.display = m==="cleansing" ? "block" : "none";
+  done.style.display  = m==="done"      ? "block" : "none";
+
+  cleanBtn.style.display = (m==="idle"||m==="soothing"||m==="done") && todayCount()>0 ? "inline-block" : "none";
+  resetBtn.style.display = m==="done" ? "inline-block" : "none";
+
+  if(m==="done"){
+    document.getElementById("doneSub").innerHTML =
+      `今日 ${todayCount()} 次怒火<br>已全部化为闪光记录<br>你很勇敢，你值得平静`;
+  }
+  if(m==="history") renderHistory();
+}
+
+function toggleHistory(){
+  if(mode==="history"){
+    document.getElementById("historyPanel").style.display="none";
+    setMode("idle");
+  } else {
+    document.getElementById("historyPanel").style.display="block";
+    mode="history";
+    renderHistory();
+  }
+}
+
+function renderHistory(){
+  const m = thisMonth();
+  document.getElementById("histTitle").textContent = m + " · 本月怒气地图";
+  const days = Object.entries(angerLog)
+    .filter(([k])=>k.startsWith(m))
+    .sort(([a],[b])=>a.localeCompare(b));
+  const container = document.getElementById("histDays");
+  container.innerHTML = "";
+  if(!days.length){
+    container.innerHTML = '<span style="font-size:5px;color:#555">本月暂无记录</span>';
+  } else {
+    days.forEach(([d,v])=>{
+      const el = document.createElement("div");
+      el.className = "hist-day" + (v>0?" red":"") + (d===today()?" gold":"");
+      el.title = d+": "+v+"次";
+      el.textContent = d.slice(8)+"日" + (v>0?" ×"+v:"");
+      container.appendChild(el);
+    });
+  }
+  document.getElementById("histFooter").textContent =
+    "月累计："+monthCount()+"次 · 点击今日净化按钮可做仪式";
+}
+
+function updateStats(){
+  document.getElementById("todayCount").textContent = todayCount();
+  document.getElementById("monthCount").textContent = monthCount();
+  const cleanBtn = document.getElementById("cleanBtn");
+  if(cleanBtn) cleanBtn.style.display = (mode==="idle"||mode==="soothing"||mode==="done") && todayCount()>0 ? "inline-block":"none";
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+initLogin();
+</script>
+</body>
+</html>
