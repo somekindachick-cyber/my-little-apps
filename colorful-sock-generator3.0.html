@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>彩色袜子生成器</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+html, body { min-height:100vh; font-family:'SimSun','STSong','宋体',serif; }
+body {
+  background:linear-gradient(135deg,#f0a0e8 0%,#c97ff0 40%,#a06ee8 70%,#7b5fd4 100%);
+  min-height:100vh; overflow-x:hidden;
+}
+h1 {
+  font-family:'Montserrat','Arial Black',sans-serif; font-weight:900;
+  font-size:clamp(1.8rem,5vw,3rem); text-align:center; color:#fff;
+  letter-spacing:2px; text-shadow:4px 4px 0 #7b00c8,7px 7px 0 #39ff14;
+  padding:28px 16px 6px; line-height:1.1;
+}
+.subtitle {
+  text-align:center; color:#39ff14; font-family:'Montserrat',sans-serif;
+  font-weight:900; font-size:.78rem; letter-spacing:5px; margin-bottom:22px;
+  animation:glow 2s ease-in-out infinite alternate;
+}
+@keyframes glow {
+  from{text-shadow:0 0 8px #39ff14;}
+  to{text-shadow:0 0 22px #39ff14,0 0 40px #00ff8899;}
+}
+.main-area {
+  display:flex; gap:24px; max-width:1000px; margin:0 auto;
+  padding:0 16px 40px; flex-wrap:wrap;
+}
+.left-panel { flex:0 0 auto; width:320px; min-width:280px; display:flex; flex-direction:column; gap:14px; }
+.sock-frame {
+  background:rgba(255,255,255,.55); border:3px solid #39ff14;
+  border-radius:18px; padding:18px 16px;
+  box-shadow:0 0 28px #39ff1450,5px 5px 0 #7b00c840;
+  display:flex; flex-direction:column; align-items:center; gap:12px;
+  backdrop-filter:blur(6px);
+}
+.sock-name {
+  font-family:'Montserrat',sans-serif; font-weight:900; font-size:1.05rem;
+  color:#5a008a; text-align:center; text-shadow:1px 1px 0 #c0f060;
+  min-height:2.4em; line-height:1.2;
+}
+#sockSvg {
+  display:block; width:192px; height:132px; image-rendering:pixelated;
+  border:2px solid #d0a0f8; border-radius:10px; background:#faf0ff;
+}
+.sock-desc {
+  font-size:.84rem; color:#3a0060;
+  background:linear-gradient(120deg,#f5e0ff 70%,#e8ffd0 100%);
+  border-left:4px solid #c060f0; border-radius:8px;
+  padding:10px 13px; line-height:1.7; width:100%;
+}
+.sock-desc .warn{color:#a00020;font-weight:bold;}
+.sock-desc b{color:#6000a0;}
+
+.current-stats {
+  width:100%; text-align:center; display:none;
+  background:rgba(123,0,200,.08); border-radius:10px; padding:8px;
+}
+.current-stats .avg-big {
+  font-family:'Montserrat',sans-serif; font-weight:900;
+  font-size:1.8rem; color:#ff9f1c; line-height:1;
+}
+.current-stats .vote-count { font-size:.72rem; color:#888; margin-top:2px; }
+
+.rating-area { display:flex; gap:4px; align-items:center; flex-wrap:wrap; justify-content:center; }
+.star { font-size:1.6rem; cursor:pointer; color:#ddd; transition:color .1s,transform .1s; user-select:none; }
+.star.lit { color:#ffcc00; text-shadow:0 0 8px #ffaa00; }
+.star:hover { color:#ffe000; transform:scale(1.25); }
+.score-badge {
+  font-family:'Montserrat',sans-serif; font-weight:900; font-size:.9rem;
+  background:#39ff14; color:#1a1a1a; border-radius:12px;
+  padding:2px 12px; margin-left:4px; min-width:36px; text-align:center;
+  box-shadow:2px 2px 0 #7b00c8;
+}
+.voted-notice {
+  font-size:.75rem; color:#7b00c8; font-family:'Montserrat',sans-serif; font-weight:900;
+  background:#e0ffcc; border-radius:8px; padding:3px 12px; display:none;
+}
+
+.btn-row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; width:100%; }
+button {
+  font-family:'Montserrat',sans-serif; font-weight:900; font-size:.82rem;
+  border:none; border-radius:8px; padding:10px 16px; cursor:pointer;
+  transition:transform .1s; letter-spacing:.5px;
+}
+button:active{transform:scale(.94);}
+button:disabled{opacity:.45;cursor:default;}
+.btn-gen  {background:#7b00c8;color:#39ff14;box-shadow:3px 3px 0 #39ff14;}
+.btn-gen:hover:not(:disabled){background:#9a20e0;}
+.btn-vote {background:#ff61d8;color:#fff;box-shadow:3px 3px 0 #7b00c8;}
+.btn-vote:hover:not(:disabled){background:#ff40cc;}
+
+.right-panel { flex:1; min-width:280px; }
+.hall-controls { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
+.hall-title {
+  font-family:'Montserrat',sans-serif; font-weight:900; font-size:1.25rem; color:#fff;
+  text-shadow:2px 2px 0 #7b00c8,4px 4px 0 #39ff14; letter-spacing:2px; flex:1;
+}
+.sort-btn {
+  font-family:'Montserrat',sans-serif; font-weight:900; font-size:.7rem;
+  background:rgba(255,255,255,.25); color:#fff; border:1.5px solid #fff6;
+  border-radius:8px; padding:5px 12px; cursor:pointer; transition:background .15s;
+}
+.sort-btn.active{background:#39ff14;color:#1a1a1a;border-color:#39ff14;}
+.sort-btn:hover:not(.active){background:rgba(255,255,255,.4);}
+
+.hall-grid {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(115px,1fr));
+  gap:12px; max-height:570px; overflow-y:auto; padding:4px 2px;
+}
+.hall-grid::-webkit-scrollbar{width:6px;}
+.hall-grid::-webkit-scrollbar-thumb{background:#c060f0;border-radius:4px;}
+.empty-hall{grid-column:1/-1;text-align:center;color:#f0d0ff;font-size:.9rem;padding:50px 10px;line-height:1.8;}
+
+.card {
+  background:rgba(255,255,255,.58); border:2px solid #c060f0; border-radius:12px;
+  padding:10px 8px 8px; display:flex; flex-direction:column; align-items:center;
+  gap:4px; cursor:pointer; transition:box-shadow .15s,transform .15s,border-color .15s;
+  position:relative; backdrop-filter:blur(4px);
+}
+.card:hover{box-shadow:0 0 18px #c060f090;transform:translateY(-3px);border-color:#39ff14;}
+.card.active-card{border-color:#39ff14;box-shadow:0 0 14px #39ff1480;}
+.card svg{display:block;width:96px;height:66px;image-rendering:pixelated;border-radius:6px;border:1px solid #e0c0f8;background:#faf0ff;}
+.card-name{font-family:'Montserrat',sans-serif;font-weight:900;font-size:.65rem;color:#6000a0;text-align:center;line-height:1.2;word-break:break-all;}
+.card-rank{position:absolute;top:4px;left:6px;font-family:'Montserrat',sans-serif;font-weight:900;font-size:.65rem;color:#fff;background:#7b00c8;border-radius:6px;padding:0 5px;}
+.card-rank.gold{background:#d4a000;}
+.card-rank.silver{background:#888;}
+.card-rank.bronze{background:#a0522d;}
+.card-avg{font-family:'Montserrat',sans-serif;font-weight:900;font-size:.72rem;color:#fff;background:#ff9f1c;border-radius:8px;padding:1px 7px;}
+.card-votes{font-size:.6rem;color:#888;font-family:'Montserrat',sans-serif;}
+.card-new{position:absolute;top:4px;right:6px;font-size:.55rem;background:#39ff14;color:#111;border-radius:4px;padding:0 4px;font-family:'Montserrat',sans-serif;font-weight:900;}
+
+/* sync */
+.sync-row{display:flex;align-items:center;gap:6px;margin-top:2px;}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#aaa;transition:background .3s;flex-shrink:0;}
+.sync-dot.ok{background:#39ff14;}
+.sync-dot.err{background:#ff4444;}
+.sync-dot.loading{background:#ffcc00;animation:pulse .8s infinite alternate;}
+@keyframes pulse{from{opacity:.4;}to{opacity:1;}}
+.sync-label{font-family:'Montserrat',sans-serif;font-weight:900;font-size:.68rem;color:#fff9;letter-spacing:1px;}
+
+.toast{
+  position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(10px);
+  background:#39ff14;color:#111;font-family:'Montserrat',sans-serif;font-weight:900;
+  padding:11px 30px;border-radius:20px;font-size:.88rem;
+  box-shadow:4px 4px 0 #7b00c8;opacity:0;transition:opacity .35s,transform .35s;
+  pointer-events:none;z-index:999;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+@media(max-width:640px){.left-panel{width:100%;min-width:unset;}}
+</style>
+</head>
+<body>
+
+<h1>彩色袜子生成器</h1>
+<div class="subtitle">✦ PIXEL SOCK STUDIO ✦</div>
+
+<div class="main-area">
+  <div class="left-panel">
+    <div class="sock-frame">
+      <div class="sock-name" id="sockName">点击生成你的命运之袜</div>
+      <svg id="sockSvg" viewBox="0 0 16 11" xmlns="http://www.w3.org/2000/svg">
+        <g id="sockBody"></g>
+      </svg>
+      <div class="sock-desc" id="sockDesc">
+        <span class="warn">【待机中】</span><br>
+        传说中的彩色袜子正在宇宙深处等待召唤…<br>点击「生成新袜子」开启你的像素冒险。
+      </div>
+
+      <div class="current-stats" id="currentStats">
+        <div class="avg-big" id="currentAvg">-</div>
+        <div class="vote-count" id="currentVoteCount">暂无评分</div>
+      </div>
+
+      <div class="rating-area">
+        <span class="star" data-v="1">★</span><span class="star" data-v="2">★</span>
+        <span class="star" data-v="3">★</span><span class="star" data-v="4">★</span>
+        <span class="star" data-v="5">★</span>
+        <span class="score-badge" id="scoreBadge">选星打分</span>
+      </div>
+      <div class="voted-notice" id="votedNotice">✓ 你已为这双袜子投过票</div>
+
+      <div class="btn-row">
+        <button class="btn-gen" onclick="generateSock()">🎲 生成新袜子</button>
+        <button class="btn-vote" id="voteBtn" onclick="submitVote()" disabled>提交评分</button>
+      </div>
+
+      <div class="sync-row">
+        <span class="sync-dot" id="syncDot"></span>
+        <span class="sync-label" id="syncLabel">连接中…</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div class="hall-controls">
+      <div class="hall-title">👑 彩色袜子名人堂</div>
+      <button class="sort-btn active" id="sortRank" onclick="setSort('rank')">综合排名</button>
+      <button class="sort-btn"        id="sortNew"  onclick="setSort('new')">最新生成</button>
+    </div>
+    <div class="hall-grid" id="hallGrid">
+      <div class="empty-hall">正在连接云端…</div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- Firebase Realtime Database SDK (compat版本，最简单) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<script>
+// ══════════════════════════════════════════════
+//  🔧 你的 Firebase 配置（已填好）
+// ══════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "AIzaSyBJk29AcZoo6E1R7rKSbDSGrPThQ1f7gJ4",
+  authDomain:        "colorful-sock.firebaseapp.com",
+  databaseURL:       "https://colorful-sock-default-rtdb.firebaseio.com",
+  projectId:         "colorful-sock",
+  storageBucket:     "colorful-sock.firebasestorage.app",
+  messagingSenderId: "626843839143",
+  appId:             "1:626843839143:web:c7733662dad5fbcbf20982"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const socksRef = db.ref('socks');
+
+// ══════════════════════════════════════════════
+//  SOCK SHAPE — 16×11 pixel grid
+// ══════════════════════════════════════════════
+const SOCK_ROWS = [
+  [9,13,'cuff'],[9,13,'cuff'],
+  [9,13,'leg'],[9,13,'leg'],[9,13,'leg'],
+  [7,14,'ankle'],
+  [3,14,'wide'],
+  [1,8,'foot'],
+  [0,5,'foot'],
+];
+function getZone(r,c){
+  if(r===5&&c===14) return 'heel';
+  if(r===6&&c===14) return 'heel';
+  if(r===6&&c<=4)   return 'heel';
+  if(r===7&&c<=1)   return 'heel';
+  if(r===8&&c<=2)   return 'heel';
+  return SOCK_ROWS[r]?.[2]??'leg';
+}
+const ALL_PX=[];
+SOCK_ROWS.forEach(([c1,c2],r)=>{
+  for(let c=c1;c<=c2;c++) ALL_PX.push({r,c,z:getZone(r,c)});
+});
+
+// ══════════════════════════════════════════════
+//  PATTERNS & PALETTES
+// ══════════════════════════════════════════════
+const PATTERNS=[
+  {name:'横条纹', fn:(c,r,k)=>k[Math.floor(r/2)%k.length]},
+  {name:'竖条纹', fn:(c,r,k)=>k[Math.floor(c/2)%k.length]},
+  {name:'格子',   fn:(c,r,k)=>k[(Math.floor(c/2)+Math.floor(r/2))%k.length]},
+  {name:'斜线',   fn:(c,r,k)=>k[Math.floor((c+r)/3)%k.length]},
+  {name:'波点',   fn:(c,r,k)=>{const dx=c%4,dy=r%4;return(dx>=1&&dx<=2&&dy>=1&&dy<=2)?k[1%k.length]:k[0];}},
+  {name:'锯齿',   fn:(c,r,k)=>{const row=Math.floor(r/3);return k[Math.floor((row%2===0?c:15-c)/4)%k.length];}},
+  {name:'色块',   fn:(c,r,k)=>k[(Math.floor(c/5)+Math.floor(r/3)*2)%k.length]},
+  {name:'十字',   fn:(c,r,k)=>(c%5===2||r%4===1)?k[1%k.length]:k[0]},
+  {name:'菱形',   fn:(c,r,k)=>{const dx=(c%6)-3,dy=(r%5)-2;return(Math.abs(dx)+Math.abs(dy)<=2)?k[1%k.length]:k[0];}},
+  {name:'像素心', fn:(c,r,k)=>{const hx=c%7,hy=r%5;const H=[[1,2,4,5],[0,1,2,3,4,5],[0,1,2,3,4,5],[1,2,3,4],[2,3]];return(hy<H.length&&H[hy].includes(hx))?k[1%k.length]:k[0];}},
+];
+const PALETTES=[
+  {main:['#ff9f1c','#ff4d6d'],cuff:'#00bcd4',heel:'#b71c1c'},
+  {main:['#ff7eb3','#ffb347'],cuff:'#00bcd4',heel:'#880e4f'},
+  {main:['#39ff14','#c060f0'],cuff:'#ff61d8',heel:'#4a148c'},
+  {main:['#00cfff','#fff200'],cuff:'#ff4d6d',heel:'#01579b'},
+  {main:['#c060f0','#ff9f1c'],cuff:'#39ff14',heel:'#4a148c'},
+  {main:['#ff4d6d','#39ff14'],cuff:'#fff200',heel:'#b71c1c'},
+  {main:['#fff200','#00cfff'],cuff:'#c060f0',heel:'#f57f17'},
+  {main:['#ff61d8','#7b5ea7'],cuff:'#39ff14',heel:'#880e4f'},
+  {main:['#3aefff','#ff6b35'],cuff:'#ff61d8',heel:'#006064'},
+  {main:['#ff9f1c','#7b5ea7','#39ff14'],cuff:'#00bcd4',heel:'#b71c1c'},
+  {main:['#e040fb','#00e5ff'],cuff:'#ffee58',heel:'#4a148c'},
+  {main:['#69f0ae','#ff6e40'],cuff:'#651fff',heel:'#1b5e20'},
+];
+const EMOJIS=[
+  ['🐸','🍄'],['🦄','🌈'],['🐙','🍕'],['🦊','🎮'],['🐼','🍩'],
+  ['🦋','🌸'],['🐢','🌵'],['🦕','⚡'],['🐡','💎'],['🦜','👾'],
+  ['🐺','🎸'],['🦑','🔮'],['🐬','✨'],['🦔','🍣'],['🐨','🎃'],
+  ['🌺','🧁'],['🌻','🌮'],['🍀','🧋'],['🎋','🛸'],['🌴','👑'],
+  ['🍎','🎯'],['🧀','🪩'],['🍉','🤖'],['🍔','🌶️'],['🍭','💫'],
+];
+const ADJ =['传说级','混沌型','彩虹系','深渊版','超进化','量子态','反常识','毒素满格','神秘力量','宇宙级','幻觉大师','次元裂缝','薛定谔','频率扭曲'];
+const NOUN=['毒蘑菇之魂','彩虹危机','袜界BOSS','混沌边界','平行宇宙','深海游荡','星际乱流','次元裂缝','时空褶皱','像素恶魔','光速旋转','维度穿越'];
+const EFFS=['穿上即可无视交通信号灯','使附近猫咪陷入哲学沉思','导致路人自发鼓掌','引发轻微色觉偏移（持续约3小时）','以15%概率吸引外星无线电信号','使袜子主人产生会飞的错觉','路过咖啡馆飘出神秘松饼香气','电梯会主动提前开门','使周围人自动说出真心话','加速时间感知让周五来得更快'];
+const WARNS=['禁止与正常袜子同时穿','不建议在水族馆附近使用','避免与文件夹正面接触','对格子衬衫有强烈排斥反应','雨天效果翻倍慎用','夜间微弱发光不适合秘密行动','使用前请通知家人','不得与纯色裤子同处一室超过2小时'];
+const RARS=['R','SR','SSR','UR','LR','世界限定','神话级','传说'];
+
+const rnd=a=>a[Math.floor(Math.random()*a.length)];
+const rndInt=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+
+// ══════════════════════════════════════════════
+//  SVG RENDER
+// ══════════════════════════════════════════════
+const NS='http://www.w3.org/2000/svg';
+function shade(hex,amt){
+  const n=parseInt(hex.replace('#',''),16);
+  return `rgb(${Math.min(255,Math.max(0,(n>>16)+amt))},${Math.min(255,Math.max(0,((n>>8)&255)+amt))},${Math.min(255,Math.max(0,(n&255)+amt))})`;
+}
+function renderSock(g, seed){
+  const pal=PALETTES[seed.pi%PALETTES.length];
+  const pat=PATTERNS[seed.li%PATTERNS.length];
+  const emojis=EMOJIS[seed.ei%EMOJIS.length];
+  while(g.firstChild) g.removeChild(g.firstChild);
+  ALL_PX.forEach(({r,c,z})=>{
+    let fill;
+    if(z==='cuff') fill=(Math.floor(c/2)+r)%2===0?pal.cuff:shade(pal.cuff,-40);
+    else if(z==='heel') fill=pal.heel;
+    else fill=pat.fn(c,r,pal.main);
+    const rect=document.createElementNS(NS,'rect');
+    rect.setAttribute('x',c); rect.setAttribute('y',r);
+    rect.setAttribute('width',1); rect.setAttribute('height',1);
+    rect.setAttribute('fill',fill);
+    g.appendChild(rect);
+  });
+  [[11,3,2.2],[4.5,7.5,1.8]].forEach(([x,y,fs],i)=>{
+    if(!emojis[i]) return;
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('x',x); t.setAttribute('y',y);
+    t.setAttribute('font-size',fs);
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('dominant-baseline','middle');
+    t.setAttribute('opacity','0.88');
+    t.textContent=emojis[i];
+    g.appendChild(t);
+  });
+}
+function makeSVGEl(seed,w,h){
+  const svg=document.createElementNS(NS,'svg');
+  svg.setAttribute('viewBox','0 0 16 11');
+  svg.style.cssText=`display:block;width:${w}px;height:${h}px;image-rendering:pixelated;border-radius:6px;border:1px solid #e0c0f8;background:#faf0ff`;
+  const g=document.createElementNS(NS,'g');
+  svg.appendChild(g);
+  renderSock(g,seed);
+  return svg;
+}
+
+// ══════════════════════════════════════════════
+//  VOTER ID (匿名，per-browser)
+// ══════════════════════════════════════════════
+function getVoterId(){
+  let id=localStorage.getItem('sock_voter_id');
+  if(!id){ id='v_'+Math.random().toString(36).slice(2)+Date.now().toString(36); localStorage.setItem('sock_voter_id',id); }
+  return id;
+}
+const VOTER_ID=getVoterId();
+
+function hasVoted(sockId){
+  const voted=JSON.parse(localStorage.getItem('sock_voted')||'{}');
+  return !!voted[sockId];
+}
+function markVoted(sockId){
+  const voted=JSON.parse(localStorage.getItem('sock_voted')||'{}');
+  voted[sockId]=true;
+  const keys=Object.keys(voted);
+  if(keys.length>500) delete voted[keys[0]];
+  localStorage.setItem('sock_voted',JSON.stringify(voted));
+}
+
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+let currentSock=null;
+let selectedScore=0;
+let sortMode='rank';
+let allSocks=[];
+
+// ══════════════════════════════════════════════
+//  SYNC STATUS
+// ══════════════════════════════════════════════
+function setSyncStatus(state,label){
+  document.getElementById('syncDot').className='sync-dot '+state;
+  document.getElementById('syncLabel').textContent=label;
+}
+
+// ══════════════════════════════════════════════
+//  GENERATE
+// ══════════════════════════════════════════════
+window.generateSock=function(){
+  const seed={
+    pi:rndInt(0,PALETTES.length-1),
+    li:rndInt(0,PATTERNS.length-1),
+    ei:rndInt(0,EMOJIS.length-1),
+    adj:rndInt(0,ADJ.length-1),
+    noun:rndInt(0,NOUN.length-1),
+    eff:rndInt(0,EFFS.length-1),
+    warn:rndInt(0,WARNS.length-1),
+    rar:rndInt(0,RARS.length-1),
+    lvl:rndInt(1,99),
+  };
+  const name=`${ADJ[seed.adj]}·${NOUN[seed.noun]}`;
+  const emojis=EMOJIS[seed.ei];
+  const desc=`<span class='warn'>【稀有度 ${RARS[seed.rar]} ☆${seed.lvl}】</span><br>配方：<b>${PATTERNS[seed.li].name}</b>纹路 × ${emojis.join('')} 混沌融合体。<br>主动技能：<b>${EFFS[seed.eff]}</b>。<br>副作用：<span class='warn'>${WARNS[seed.warn]}</span>。<br>产地：来自第${rndInt(4,17)}维度袜子工厂，限量1双。`;
+
+  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  currentSock={id,seed,name,desc};
+  selectedScore=0;
+
+  document.getElementById('sockName').textContent=name;
+  document.getElementById('sockDesc').innerHTML=desc;
+  document.getElementById('currentStats').style.display='none';
+  document.getElementById('votedNotice').style.display='none';
+  document.getElementById('voteBtn').disabled=true;
+  document.getElementById('scoreBadge').textContent='选星打分';
+  resetStars();
+  renderSock(document.getElementById('sockBody'),seed);
+
+  // 写入 Realtime Database
+  setSyncStatus('loading','保存中…');
+  socksRef.child(id).set({
+    id, seed, name, desc,
+    scores:{},          // scores/{voterId}: score值
+    createdAt: firebase.database.ServerValue.TIMESTAMP,
+  }).then(()=>{
+    setSyncStatus('ok','已同步');
+  }).catch(e=>{
+    setSyncStatus('err','保存失败');
+    console.error(e);
+  });
+};
+
+// ══════════════════════════════════════════════
+//  STARS
+// ══════════════════════════════════════════════
+document.querySelectorAll('.star').forEach(star=>{
+  star.addEventListener('mouseenter',()=>{
+    if(currentSock&&hasVoted(currentSock.id)) return;
+    const v=+star.dataset.v;
+    document.querySelectorAll('.star').forEach(s=>{s.style.color=+s.dataset.v<=v?'#ffe000':'';});
+  });
+  star.addEventListener('mouseleave',()=>{
+    document.querySelectorAll('.star').forEach(s=>{s.style.color='';s.classList.toggle('lit',+s.dataset.v<=selectedScore);});
+  });
+  star.addEventListener('click',()=>{
+    if(currentSock&&hasVoted(currentSock.id)) return;
+    selectedScore=+star.dataset.v;
+    document.querySelectorAll('.star').forEach(s=>s.classList.toggle('lit',+s.dataset.v<=selectedScore));
+    document.getElementById('scoreBadge').textContent=selectedScore+'分';
+    document.getElementById('voteBtn').disabled=!currentSock;
+  });
+});
+
+function resetStars(){
+  selectedScore=0;
+  document.querySelectorAll('.star').forEach(s=>{s.classList.remove('lit');s.style.color='';});
+}
+
+// ══════════════════════════════════════════════
+//  SUBMIT VOTE
+// ══════════════════════════════════════════════
+window.submitVote=function(){
+  if(!currentSock||!selectedScore) return;
+  if(hasVoted(currentSock.id)){showToast('你已投过票啦～');return;}
+  document.getElementById('voteBtn').disabled=true;
+  setSyncStatus('loading','提交评分…');
+
+  // Realtime DB: scores/{voterId} = 分值（每人一票，自动去重）
+  socksRef.child(currentSock.id+'/scores/'+VOTER_ID).set(selectedScore)
+    .then(()=>{
+      markVoted(currentSock.id);
+      document.getElementById('votedNotice').style.display='block';
+      setSyncStatus('ok','评分已提交');
+      showToast('评分提交成功！感谢你的投票 ✨');
+    })
+    .catch(e=>{
+      setSyncStatus('err','提交失败');
+      document.getElementById('voteBtn').disabled=false;
+      console.error(e);
+    });
+};
+
+// ══════════════════════════════════════════════
+//  REALTIME LISTENER — 监听所有袜子
+// ══════════════════════════════════════════════
+socksRef.on('value', snap=>{
+  const data=snap.val()||{};
+  allSocks=Object.values(data);
+  renderHall();
+
+  // 更新当前袜子的实时分数
+  if(currentSock){
+    const live=allSocks.find(s=>s.id===currentSock.id);
+    if(live) updateCurrentStats(live);
+  }
+  setSyncStatus('ok','已连接云端');
+}, err=>{
+  setSyncStatus('err','连接断开');
+  console.error(err);
+});
+
+function updateCurrentStats(sock){
+  const scores=Object.values(sock.scores||{});
+  if(!scores.length){
+    document.getElementById('currentStats').style.display='none';
+    return;
+  }
+  const avg=scores.reduce((a,v)=>a+v,0)/scores.length;
+  document.getElementById('currentAvg').textContent=avg.toFixed(1)+'★';
+  document.getElementById('currentVoteCount').textContent=scores.length+'人评分';
+  document.getElementById('currentStats').style.display='block';
+  if(hasVoted(currentSock.id)){
+    document.getElementById('votedNotice').style.display='block';
+    document.getElementById('voteBtn').disabled=true;
+  }
+}
+
+// ══════════════════════════════════════════════
+//  HALL
+// ══════════════════════════════════════════════
+function weightedScore(sock){
+  const scores=Object.values(sock.scores||{});
+  if(!scores.length) return 0;
+  const avg=scores.reduce((a,v)=>a+v,0)/scores.length;
+  return avg*Math.log(scores.length+1);
+}
+
+window.setSort=function(mode){
+  sortMode=mode;
+  document.getElementById('sortRank').classList.toggle('active',mode==='rank');
+  document.getElementById('sortNew').classList.toggle('active',mode==='new');
+  renderHall();
+};
+
+function renderHall(){
+  const grid=document.getElementById('hallGrid');
+  if(!allSocks.length){
+    grid.innerHTML='<div class="empty-hall">名人堂空空如也<br>快去生成第一双袜子吧！</div>';
+    return;
+  }
+  const sorted=[...allSocks].sort((a,b)=>
+    sortMode==='rank'
+      ? weightedScore(b)-weightedScore(a)
+      : (b.createdAt||0)-(a.createdAt||0)
+  );
+  grid.innerHTML='';
+  sorted.forEach((sock,idx)=>{
+    const scores=Object.values(sock.scores||{});
+    const avg=scores.length?scores.reduce((a,v)=>a+v,0)/scores.length:null;
+    const isNew=(Date.now()-(sock.createdAt||0))<300000;
+
+    const card=document.createElement('div');
+    card.className='card'+(currentSock?.id===sock.id?' active-card':'');
+
+    const rank=document.createElement('div');
+    rank.className='card-rank'+(idx===0?' gold':idx===1?' silver':idx===2?' bronze':'');
+    rank.textContent=sortMode==='rank'?`#${idx+1}`:'';
+    if(sortMode==='new') rank.style.display='none';
+    card.appendChild(rank);
+
+    if(isNew){const nb=document.createElement('div');nb.className='card-new';nb.textContent='NEW';card.appendChild(nb);}
+
+    card.appendChild(makeSVGEl(sock.seed,96,66));
+
+    const nm=document.createElement('div');nm.className='card-name';nm.textContent=sock.name;card.appendChild(nm);
+
+    const meta=document.createElement('div');meta.style.cssText='display:flex;flex-direction:column;align-items:center;gap:2px;width:100%';
+    if(avg!==null){
+      const av=document.createElement('div');av.className='card-avg';av.textContent=avg.toFixed(1)+'★';meta.appendChild(av);
+    }
+    const vc=document.createElement('div');vc.className='card-votes';vc.textContent=scores.length?scores.length+'票':'暂无评分';meta.appendChild(vc);
+    card.appendChild(meta);
+
+    card.onclick=()=>{
+      currentSock={id:sock.id,seed:sock.seed,name:sock.name,desc:sock.desc};
+      selectedScore=0;
+      document.getElementById('sockName').textContent=sock.name;
+      document.getElementById('sockDesc').innerHTML=sock.desc;
+      renderSock(document.getElementById('sockBody'),sock.seed);
+      resetStars();
+      document.getElementById('scoreBadge').textContent='选星打分';
+      document.getElementById('voteBtn').disabled=true;
+      if(hasVoted(sock.id)){
+        document.getElementById('votedNotice').style.display='block';
+      } else {
+        document.getElementById('votedNotice').style.display='none';
+      }
+      updateCurrentStats(sock);
+      document.querySelectorAll('.card').forEach(c=>c.classList.remove('active-card'));
+      card.classList.add('active-card');
+    };
+    grid.appendChild(card);
+  });
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+// 初始生成一双
+generateSock();
+</script>
+</body>
+</html>
