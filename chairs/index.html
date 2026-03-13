@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>存在主义：3秒速决</title>
+    <title>存在主义：精准锁定</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: "serif"; touch-action: none; }
         #game-stage { 
@@ -11,6 +11,34 @@
             background-image: url('image_78211d.jpg'); 
             background-size: cover; background-position: center;
         }
+
+        /* 瞄准镜样式 */
+        #aim-scope {
+            position: absolute;
+            width: 100px; height: 100px;
+            border: 2px solid rgba(255, 0, 0, 0.5);
+            border-radius: 50%;
+            left: 50%; top: 50%;
+            transform: translate(-50%, -50%) scale(1.5);
+            pointer-events: none;
+            z-index: 30;
+            transition: all 0.2s ease;
+            display: none;
+        }
+        /* 瞄准镜的十字线 */
+        #aim-scope::before, #aim-scope::after {
+            content: ''; position: absolute; background: rgba(255, 0, 0, 0.5);
+        }
+        #aim-scope::before { width: 100%; height: 2px; top: 50%; left: 0; transform: translateY(-50%); }
+        #aim-scope::after { height: 100%; width: 2px; left: 50%; top: 0; transform: translateX(-50%); }
+        
+        /* 锁定状态 */
+        #aim-scope.locked {
+            border-color: #00ff00;
+            box-shadow: 0 0 20px #00ff00;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        #aim-scope.locked::before, #aim-scope.locked::after { background: #00ff00; }
 
         .philosopher {
             position: absolute; width: 180px; z-index: 10;
@@ -33,26 +61,20 @@
             border: 3px solid #000; padding: 10px 40px; margin-top: 20px;
             pointer-events: auto; box-shadow: 8px 8px 0px #000;
         }
-        #msg { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
-        #countdown { font-size: 48px; color: #ff0000; font-weight: 900; display: none; animation: pulse 1s infinite; }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); }
-        }
-
+        #msg { font-size: 24px; font-weight: bold; }
+        #countdown { font-size: 48px; color: #00ff00; font-weight: 900; display: none; }
         .btn { background: #000; color: #fff; padding: 12px 35px; border: none; cursor: pointer; font-size: 20px; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <div id="game-stage">
+    <div id="aim-scope"></div>
     <div id="winner-layer" class="winner-sitting"></div>
     <div id="ui">
         <div class="panel">
             <div id="status">第 <span id="lv-num">1</span> 关</div>
-            <div id="msg">点击确证开始</div>
+            <div id="msg">准备好，锁定位置</div>
             <div id="countdown">3</div>
             <button id="main-btn" class="btn" onclick="initAndStart()">确证存在</button>
         </div>
@@ -66,6 +88,7 @@
 
     const stage = document.getElementById('game-stage');
     const winnerLayer = document.getElementById('winner-layer');
+    const scope = document.getElementById('aim-scope');
     const msgText = document.getElementById('msg');
     const countdownEl = document.getElementById('countdown');
     const mainBtn = document.getElementById('main-btn');
@@ -82,7 +105,7 @@
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
         osc.connect(gain); gain.connect(audioCtx.destination);
         osc.start(); osc.stop(audioCtx.currentTime + duration);
     }
@@ -96,4 +119,119 @@
     function startLevel() {
         isGaming = true; isDragging = false;
         mainBtn.style.display = 'none';
-        countdownEl.style.display =
+        countdownEl.style.display = 'none';
+        winnerLayer.style.opacity = '0';
+        scope.style.display = 'block';
+        scope.classList.remove('locked');
+        msgText.innerText = "进入准星！";
+        lvNum.innerText = currentLevel;
+        
+        document.querySelectorAll('.philosopher').forEach(p => p.remove());
+
+        playerPos = { x: window.innerWidth * 0.85, y: window.innerHeight * 0.85 };
+        playerObj = document.createElement('img');
+        playerObj.src = 'image_78215a.png';
+        playerObj.className = 'philosopher player';
+        updatePos(playerObj, playerPos.x, playerPos.y);
+        stage.appendChild(playerObj);
+        
+        bindDrag(playerObj);
+        for (let i = 0; i < currentLevel; i++) createAI();
+    }
+
+    function updatePos(el, x, y) { el.style.left = x + 'px'; el.style.top = y + 'px'; }
+
+    function createAI() {
+        const ai = document.createElement('img');
+        ai.src = 'image_78215a.png';
+        ai.className = 'philosopher ai';
+        let aiX = Math.random() > 0.5 ? -200 : window.innerWidth + 200;
+        let aiY = Math.random() * window.innerHeight;
+        updatePos(ai, aiX, aiY);
+        stage.appendChild(ai);
+
+        const duration = Math.max(0.4, 3.2 - (currentLevel * 0.4));
+        setTimeout(() => {
+            if (!isGaming) return;
+            ai.style.transition = `all ${duration}s cubic-bezier(0.4, 0, 0.2, 1)`;
+            updatePos(ai, chairPos.x, chairPos.y);
+            setTimeout(() => { if (isGaming) endRound(false); }, duration * 1000);
+        }, 800);
+    }
+
+    function bindDrag(el) {
+        const start = (e) => {
+            if (!isGaming) return;
+            e.preventDefault();
+            isDragging = true;
+            const pos = e.touches ? e.touches[0] : e;
+            startMouse = { x: pos.clientX, y: pos.clientY };
+            startObj = { x: playerPos.x, y: playerPos.y };
+        };
+        const move = (e) => {
+            if (!isDragging || !isGaming) return;
+            const pos = e.touches ? e.touches[0] : e;
+            playerPos.x = startObj.x + (pos.clientX - startMouse.x);
+            playerPos.y = startObj.y + (pos.clientY - startMouse.y);
+            updatePos(el, playerPos.x, playerPos.y);
+
+            const dist = Math.sqrt(Math.pow(playerPos.x - chairPos.x, 2) + Math.pow(playerPos.y - chairPos.y, 2));
+            
+            // 瞄准镜锁定视觉反馈
+            if (dist < 100) {
+                scope.classList.add('locked');
+            } else {
+                scope.classList.remove('locked');
+            }
+
+            if (dist < 40) { // 成功点
+                isDragging = false;
+                endRound(true);
+            }
+        };
+        el.addEventListener('mousedown', start);
+        el.addEventListener('touchstart', start, {passive: false});
+        window.addEventListener('mousemove', move);
+        window.addEventListener('touchmove', move, {passive: false});
+        window.addEventListener('mouseup', () => isDragging = false);
+        window.addEventListener('touchend', () => isDragging = false);
+    }
+
+    function endRound(win) {
+        if (!isGaming) return;
+        isGaming = false;
+        scope.style.display = 'none';
+        document.querySelectorAll('.philosopher').forEach(p => p.style.opacity = '0');
+        winnerLayer.style.opacity = '1';
+
+        if (win) {
+            playTone(880, 'sine', 0.4);
+            currentLevel++;
+            msgText.innerText = "锁定成功！";
+            startCountdown();
+        } else {
+            playTone(150, 'sawtooth', 0.4);
+            msgText.innerText = "目标丢失。";
+            mainBtn.style.display = 'inline-block';
+            mainBtn.innerText = "重新锁定";
+        }
+    }
+
+    function startCountdown() {
+        let count = 3;
+        countdownEl.innerText = count;
+        countdownEl.style.display = 'block';
+        const timer = setInterval(() => {
+            count--;
+            if (count > 0) {
+                countdownEl.innerText = count;
+                playTone(660, 'sine', 0.1);
+            } else {
+                clearInterval(timer);
+                startLevel();
+            }
+        }, 1000);
+    }
+</script>
+</body>
+</html>
