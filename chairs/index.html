@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>存在主义：轨迹引导版</title>
+    <title>存在主义：红外线潜入</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: "serif"; touch-action: none; }
         #game-stage { 
@@ -12,29 +12,21 @@
             background-size: cover; background-position: center;
         }
 
-        /* 引导线画布 */
-        #guide-canvas {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 5;
-        }
-
-        .shake { animation: shakeAnim 0.3s; }
-        @keyframes shakeAnim {
-            0% { transform: translate(0,0); }
-            25% { transform: translate(6px, 6px); }
-            50% { transform: translate(-6px, -6px); }
-            100% { transform: translate(0,0); }
-        }
-        
-        #chair-hitbox { position: absolute; width: 20px; height: 20px; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1; pointer-events: none; }
+        /* 引导线与激光画布 */
+        #guide-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
 
         .philosopher {
             position: absolute; width: 220px; z-index: 10;
             user-select: none; -webkit-user-drag: none;
-            transition: opacity 0.3s;
+            /* 关键：中心点对齐 */
+            transform: translate(-50%, -50%); 
         }
 
-        .player { filter: drop-shadow(0 0 25px rgba(255, 215, 0, 0.9)); cursor: grab; z-index: 20; }
+        /* 玩家：唯一带有一层淡淡的“灵魂光芒” */
+        .player { filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.8)); cursor: grab; z-index: 20; }
+        .player:active { cursor: grabbing; }
+
+        /* AI：完全实心，和玩家一样大 */
         .ai { filter: none; pointer-events: none; }
 
         #ui { position: absolute; top: 0; width: 100%; text-align: center; pointer-events: none; z-index: 100; }
@@ -43,42 +35,39 @@
             border: 3px solid #000; padding: 10px 40px; margin-top: 20px;
             pointer-events: auto; box-shadow: 8px 8px 0px #000;
         }
-        .btn { background: #000; color: #fff; padding: 12px 35px; border: none; cursor: pointer; font-size: 20px; font-weight: bold; }
+        .btn { background: #000; color: #fff; padding: 12px 35px; border: none; cursor: pointer; font-size: 20px; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <div id="game-stage">
     <canvas id="guide-canvas"></canvas>
-    <div id="chair-hitbox"></div>
     <div id="ui">
         <div class="panel">
-            <div id="status">关卡 <span id="lv-num">1</span></div>
-            <div id="msg">顺着因果线，回到你的位置。</div>
-            <button id="main-btn" class="btn" onclick="initAndStart()">确证存在</button>
+            <div id="level-info">关卡 <span id="lv-num">1</span></div>
+            <div id="status">避开红外线，占据中心。</div>
+            <button id="main-btn" class="btn" onclick="initAndStart()">开启轮回</button>
         </div>
     </div>
 </div>
 
 <script>
-    let currentLevel = 1;
-    let isGaming = false;
-    let isDragging = false;
-    let playerObj, audioCtx;
-    let startX, startY, initX, initY;
+    let currentLevel = 1, isGaming = false, isDragging = false, audioCtx;
+    let playerPos = { x: 0, y: 0 }, chairPos = { x: 0, y: 0 };
+    let startMouse = { x: 0, y: 0 }, startObj = { x: 0, y: 0 };
+    let lasers = []; // 红外线数据
 
     const stage = document.getElementById('game-stage');
     const canvas = document.getElementById('guide-canvas');
     const ctx = canvas.getContext('2d');
-    const hitbox = document.getElementById('chair-hitbox');
-    const msgText = document.getElementById('msg');
+    const msgText = document.getElementById('status');
     const mainBtn = document.getElementById('main-btn');
     const lvNum = document.getElementById('lv-num');
 
-    // 适配画布大小
     function resize() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+        chairPos = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     }
     window.addEventListener('resize', resize);
     resize();
@@ -88,14 +77,10 @@
         if (!audioCtx) return;
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + duration);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + duration);
     }
 
     function initAndStart() {
@@ -104,144 +89,186 @@
         startLevel();
     }
 
+    // 初始化关卡与红外线数据
     function startLevel() {
-        isGaming = true;
-        isDragging = false;
+        isGaming = true; isDragging = false;
         mainBtn.style.display = 'none';
-        msgText.innerText = "追随指引，占据中心。";
         stage.style.backgroundImage = "url('image_78211d.jpg')";
-        stage.classList.remove('shake');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        msgText.innerText = "避开红外线，对准中心点！";
         
         document.querySelectorAll('.philosopher').forEach(p => p.remove());
 
-        // 生成玩家：右下角
+        // 玩家固定在右下角
+        playerPos = { x: window.innerWidth * 0.85, y: window.innerHeight * 0.85 };
+        
         playerObj = document.createElement('img');
         playerObj.src = 'image_78215a.png';
         playerObj.className = 'philosopher player';
-        playerObj.style.right = '5%';
-        playerObj.style.bottom = '5%';
+        updatePos(playerObj, playerPos.x, playerPos.y);
         stage.appendChild(playerObj);
         
-        addDragLogic(playerObj);
-        for (let i = 0; i < currentLevel; i++) createAI(i);
-        playTone(523, 'sine', 0.2);
+        bindDrag(playerObj);
+
+        // 生成 AI 
+        for (let i = 0; i < currentLevel; i++) createAI();
+
+        // --- 生成红外线数据 ---
+        lasers = [];
+        const laserCount = currentLevel * 2 + 1; // 激光数量随等级增加
+        for (let i = 0; i < laserCount; i++) {
+            lasers.push({
+                angle: Math.random() * Math.PI * 2,
+                speed: 0.01 + Math.random() * 0.02 * currentLevel, // 越往后越快
+                color: 'rgba(255, 0, 0, 0.8)'
+            });
+        }
+
+        playTone(523.25, 'sine', 0.2);
+        render(); // 启动 Canvas 渲染逻辑
     }
 
-    function createAI(i) {
+    function updatePos(el, x, y) { el.style.left = x + 'px'; el.style.top = y + 'px'; }
+
+    function createAI() {
         const ai = document.createElement('img');
         ai.src = 'image_78215a.png';
         ai.className = 'philosopher ai';
-        ai.style.left = (Math.random() > 0.5 ? -250 : window.innerWidth + 50) + 'px';
-        ai.style.top = Math.random() * 60 + '%';
+        // AI 从左侧或顶部滑入
+        let aiX = Math.random() > 0.5 ? -250 : window.innerWidth + 200;
+        let aiY = Math.random() * window.innerHeight;
+        updatePos(ai, aiX, aiY);
         stage.appendChild(ai);
 
-        const delay = 800 + Math.random() * 1000; 
-        const speed = Math.max(0.4, 2.5 - (currentLevel * 0.2));
-        
+        const delay = 800 + Math.random() * 1000;
+        const duration = Math.max(0.5, 3 - currentLevel * 0.3); // 关卡提升，AI 速度更快
+
         setTimeout(() => {
             if (!isGaming) return;
-            ai.style.transition = `all ${speed}s cubic-bezier(0.4, 0, 0.2, 1)`;
-            ai.style.left = (window.innerWidth/2 - 110) + 'px';
-            ai.style.top = (window.innerHeight/2 - 110) + 'px';
-            setTimeout(() => { if (isGaming) endRound(false); }, speed * 1000);
+            ai.style.transition = `all ${duration}s cubic-bezier(0.4, 0, 0.2, 1)`;
+            // AI 的目标也是精确中心
+            updatePos(ai, chairPos.x, chairPos.y);
+            // 简单判定AI是否抢先到达
+            setTimeout(() => { if (isGaming) endRound(false, "太慢了！AI 占据了中心。"); }, duration * 1000);
         }, delay);
     }
 
-    function drawGuideLine() {
-        if (!isDragging || !isGaming) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            return;
-        }
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        const r1 = playerObj.getBoundingClientRect();
-        const r2 = hitbox.getBoundingClientRect();
-        
-        const pX = r1.left + r1.width / 2;
-        const pY = r1.top + r1.height * 0.75; // 屁股重心
-        const cX = r2.left + r2.width / 2;
-        const cY = r2.top + r2.height / 2;
-
-        // 绘制虚线
-        ctx.beginPath();
-        ctx.setLineDash([10, 10]);
-        ctx.moveTo(pX, pY);
-        ctx.lineTo(cX, cY);
-        ctx.strokeStyle = 'rgba(255, 215, 0, 0.6)';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-
-        // 绘制两端的光点
-        ctx.setLineDash([]);
-        ctx.fillStyle = 'rgba(255, 215, 0, 0.8)';
-        ctx.beginPath();
-        ctx.arc(pX, pY, 5, 0, Math.PI * 2);
-        ctx.arc(cX, cY, 8, 0, Math.PI * 2);
-        ctx.fill();
-
-        requestAnimationFrame(drawGuideLine);
-    }
-
-    function addDragLogic(el) {
-        const onStart = (e) => {
+    function bindDrag(el) {
+        const start = (e) => {
             if (!isGaming) return;
             e.preventDefault();
             isDragging = true;
             const pos = e.touches ? e.touches[0] : e;
-            startX = pos.clientX; startY = pos.clientY;
-            initX = el.offsetLeft; initY = el.offsetTop;
-            el.style.right = 'auto'; el.style.bottom = 'auto';
-            el.style.left = initX + 'px'; el.style.top = initY + 'px';
-            drawGuideLine();
+            startMouse = { x: pos.clientX, y: pos.clientY };
+            startObj = { x: playerPos.x, y: playerPos.y };
         };
-
-        const onMove = (e) => {
+        const move = (e) => {
             if (!isDragging || !isGaming) return;
             const pos = e.touches ? e.touches[0] : e;
-            el.style.left = (initX + (pos.clientX - startX)) + 'px';
-            el.style.top = (initY + (pos.clientY - startY)) + 'px';
+            playerPos.x = startObj.x + (pos.clientX - startMouse.x);
+            playerPos.y = startObj.y + (pos.clientY - startMouse.y);
+            updatePos(el, playerPos.x, playerPos.y);
 
-            if (checkCollision(el)) { isDragging = false; endRound(true); }
+            // 物理吸附判定 (坐落点在几何中心，即 translate -50% -50% 的核心点)
+            const dist = Math.sqrt(Math.pow(playerPos.x - chairPos.x, 2) + Math.pow(playerPos.y - chairPos.y, 2));
+
+            if (dist < 40) { // 物理级吸附
+                isDragging = false;
+                endRound(true);
+            }
         };
-
-        el.addEventListener('mousedown', onStart);
-        el.addEventListener('touchstart', onStart, {passive: false});
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('touchmove', onMove, {passive: false});
+        el.addEventListener('mousedown', start);
+        el.addEventListener('touchstart', start, {passive: false});
+        window.addEventListener('mousemove', move);
+        window.addEventListener('touchmove', move, {passive: false});
         window.addEventListener('mouseup', () => isDragging = false);
         window.addEventListener('touchend', () => isDragging = false);
     }
 
-    function checkCollision(el) {
-        const r1 = el.getBoundingClientRect();
-        const r2 = hitbox.getBoundingClientRect();
-        const dist = Math.sqrt(
-            Math.pow((r1.left + r1.width/2) - (r2.left + r2.width/2), 2) +
-            Math.pow((r1.top + r1.height * 0.75) - (r2.top + r2.height/2), 2)
-        );
-        return dist < 45;
+    // --- 核心 Canvas 渲染与碰撞检测逻辑 ---
+    function render() {
+        if (!isGaming) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 1. 绘制金色引导线 (因果链)
+        if (isDragging) {
+            ctx.beginPath();
+            ctx.setLineDash([8, 8]);
+            ctx.moveTo(playerPos.x, playerPos.y);
+            ctx.lineTo(chairPos.x, chairPos.y);
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        // 2. 绘制与检测红外线激光
+        ctx.setLineDash([]);
+        let hitDetected = false;
+
+        lasers.forEach(laser => {
+            laser.angle += laser.speed; // 激光旋转
+
+            ctx.beginPath();
+            ctx.moveTo(chairPos.x, chairPos.y);
+            // 激光束长度覆盖整个屏幕
+            const laserLen = Math.max(window.innerWidth, window.innerHeight);
+            const lx = chairPos.x + Math.cos(laser.angle) * laserLen;
+            const ly = chairPos.y + Math.sin(laser.angle) * laserLen;
+            ctx.lineTo(lx, ly);
+            
+            ctx.strokeStyle = laser.color;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // 碰撞检测逻辑：计算哲学家的几何中心点（playerPos）到激光直线的垂直距离
+            // 直线方程可以通过两点 (cx, cy) 和 (lx, ly) 确定
+            const dx = lx - chairPos.x;
+            const dy = ly - chairPos.y;
+            // 如果激光长度几乎为0，跳过检测 (不应该发生)
+            if (dx*dx + dy*dy < 100) return; 
+
+            // 点到直线距离公式的分子部分： |(y2-y1)x0 - (x2-x1)y0 + x2y1 - y2x1|
+            const numerator = Math.abs(dy * playerPos.x - dx * playerPos.y + lx * chairPos.y - ly * chairPos.x);
+            const denominator = Math.sqrt(dy * dy + dx * dx);
+            const dist = numerator / denominator;
+
+            // 如果距离激光束小于 15 像素（考虑老头尺寸大），判定为触碰
+            if (isGaming && dist < 15) {
+                laser.color = 'rgba(255, 0, 0, 1)'; // 触碰时变亮
+                hitDetected = true;
+            } else {
+                laser.color = 'rgba(255, 0, 0, 0.8)';
+            }
+        });
+
+        // 如果触碰激光，播放失败音效并结束关卡
+        if (isGaming && hitDetected) {
+            playTone(100, 'sawtooth', 0.5); // 失败低音
+            msgText.innerText = "触碰激光！你沦为了旁观者。";
+            endRound(false, "触碰激光！你的存在感消失了。");
+        }
+
+        requestAnimationFrame(render);
     }
 
-    function endRound(win) {
+    function endRound(win, text) {
         if (!isGaming) return;
         isGaming = false;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         document.querySelectorAll('.philosopher').forEach(p => p.style.opacity = '0');
 
         if (win) {
-            stage.classList.add('shake');
             stage.style.backgroundImage = "url('image_782124.jpg')";
-            playTone(880, 'sine', 0.5);
+            playTone(880, 'sine', 0.4);
             currentLevel++;
-            msgText.innerText = "精准入座！存在得以延续。";
+            msgText.innerText = "精准入座！你比激光更坚韧。";
         } else {
-            playTone(150, 'sawtooth', 0.5);
-            msgText.innerText = "轨迹断裂。虚无占据了中心。";
+            stage.style.backgroundImage = "url('image_78211d.jpg')";
+            msgText.innerText = text;
         }
+        
         lvNum.innerText = currentLevel;
         mainBtn.style.display = 'inline-block';
-        mainBtn.innerText = win ? "下一关" : "重试";
+        mainBtn.innerText = win ? "挑战更高的束缚" : "修正轨迹";
     }
 </script>
 </body>
