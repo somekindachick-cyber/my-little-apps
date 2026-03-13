@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>恐龙与古生物知识卡片</title>
+  <style>
+    :root {
+      --bg1:#f4fbf7; --bg2:#eef7ff; --card:#ffffff; --ink:#20302a; --sub:#5a6b64;
+      --accent:#2d8f60; --accent2:#3979d6; --line:#d8e7df; --shadow:0 12px 30px rgba(25,50,40,.10);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--ink);min-height:100vh}
+    .wrap{max-width:920px;margin:0 auto;padding:20px 14px 40px}
+    .title{text-align:center;margin:12px 0 18px}
+    .title h1{margin:0;font-size:clamp(28px,5vw,42px);line-height:1.15}
+    .title p{margin:10px auto 0;color:var(--sub);max-width:680px;font-size:16px;line-height:1.7}
+    .badges{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:14px}
+    .badge{background:rgba(255,255,255,.78);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.04)}
+    .card{background:var(--card);border:1px solid rgba(120,160,140,.18);border-radius:24px;box-shadow:var(--shadow);padding:18px;margin-top:18px}
+    .stats{display:grid;grid-template-columns:repeat(4,minmax(90px,1fr));gap:10px;width:100%}
+    .stat{background:#f8fcfa;border:1px solid var(--line);border-radius:18px;padding:12px;text-align:center}
+    .stat .k{color:var(--sub);font-size:13px;margin-bottom:6px}.stat .v{font-size:24px;font-weight:800}
+    .progress{width:100%;height:14px;background:#edf3ef;border-radius:999px;overflow:hidden;border:1px solid var(--line);margin:14px 0 10px}
+    .bar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .35s ease}
+    .qnum{display:inline-block;padding:7px 12px;border-radius:999px;background:#eef8f2;color:var(--accent);font-weight:700;font-size:14px;margin-bottom:14px}
+    .question{font-size:clamp(24px,4.8vw,34px);line-height:1.35;font-weight:800;margin-bottom:16px}
+    .options{display:grid;gap:12px;margin-top:12px}
+    button.option{width:100%;text-align:left;border:2px solid #dce9e2;background:#fff;border-radius:18px;padding:16px;font-size:20px;font-weight:700;color:var(--ink);cursor:pointer;transition:transform .08s ease,border-color .2s ease,background .2s ease;box-shadow:0 6px 14px rgba(0,0,0,.03)}
+    button.option:hover:not(:disabled){transform:translateY(-1px);border-color:#9ecdb5;background:#fbfffc}
+    button.option:disabled{cursor:default;opacity:1}
+    .option.correct{border-color:#8ad5a6;background:#f0fff5}.option.wrong{border-color:#e3a3a3;background:#fff5f5}
+    .feedback{margin-top:16px;border-radius:18px;padding:14px 16px;display:none;font-size:18px;line-height:1.7}
+    .feedback.show{display:block}.feedback.good{background:#effcf4;border:1px solid #b9e9cb;color:#1f6b3a}.feedback.bad{background:#fff4f4;border:1px solid #efc1c1;color:#8a3434}
+    .explain{margin-top:8px;font-size:16px;color:#355146}.controls{display:flex;gap:12px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+    .btn{border:none;border-radius:999px;padding:14px 22px;font-size:18px;font-weight:800;cursor:pointer;color:#fff;background:linear-gradient(90deg,var(--accent),var(--accent2));box-shadow:0 10px 18px rgba(57,121,214,.18)}
+    .start,.result{text-align:center;padding:14px 6px}.start h2,.result h2{font-size:clamp(24px,4vw,34px);margin:6px 0 10px}
+    .start p,.result p{font-size:18px;color:var(--sub);line-height:1.8;max-width:700px;margin:0 auto}
+    .big-score{font-size:clamp(40px,10vw,74px);font-weight:900;margin:10px 0;color:var(--accent2)}
+    .footnote{margin-top:16px;font-size:13px;color:#60736a;line-height:1.7;text-align:center}
+    @media (max-width:720px){.stats{grid-template-columns:repeat(2,minmax(120px,1fr))}button.option{font-size:18px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title">
+      <h1>🦖 恐龙与古生物知识卡片</h1>
+      <p>给 6–8 岁小朋友设计的互动知识卡片。共 80 题，每答对 1 题得 10 分，答错不扣分。题目尽量采用目前常见科普机构一致使用、容易查证的知识点。</p>
+      <div class="badges">
+        <div class="badge">80 题题库</div><div class="badge">答对 +10 分</div><div class="badge">答错不扣分</div><div class="badge">含恐龙 + 同时期古生物</div>
+      </div>
+    </div>
+    <div class="card" id="app"></div>
+    <div class="footnote">小提示：这是亲子科普小游戏，不代替专业教材。页面内题目会自动随机排序。<br/>建议使用现代浏览器直接打开本 HTML 文件。</div>
+  </div>
+  <script>
+    const allQuestions = [{"q": "恐龙主要生活在哪个地质时代？", "options": ["中生代", "新生代", "石器时代", "冰河时代"], "a": 0, "e": "恐龙生活在中生代，中生代分为三叠纪、侏罗纪和白垩纪。"}, {"q": "中生代的三个主要时期，按先后顺序是哪一组？", "options": ["三叠纪→侏罗纪→白垩纪", "白垩纪→侏罗纪→三叠纪", "侏罗纪→三叠纪→白垩纪", "三叠纪→白垩纪→侏罗纪"], "a": 0, "e": "正确顺序是三叠纪、侏罗纪、白垩纪。"}, {"q": "最早的恐龙大约出现在什么时候？", "options": ["约2.45亿年前", "约6600万年前", "约1000万年前", "约45亿年前"], "a": 0, "e": "目前常见科普资料一般写作约2.45亿年前。"}, {"q": "非鸟类恐龙大约在什么时候灭绝？", "options": ["约6600万年前", "约600万年前", "约6万年前", "约6亿年前"], "a": 0, "e": "非鸟类恐龙在白垩纪末的大灭绝中消失，时间约为6600万年前。"}, {"q": "下面哪一种是现在还活着的“恐龙后代”？", "options": ["鸟类", "金鱼", "青蛙", "海豚"], "a": 0, "e": "现代鸟类属于恐龙演化支系，所以常说“鸟类是活着的恐龙”。"}, {"q": "下面哪一种不是恐龙？", "options": ["翼龙", "三角龙", "剑龙", "甲龙"], "a": 0, "e": "翼龙会飞，但它不是恐龙，而是与恐龙同时代的飞行爬行动物。"}, {"q": "下面哪一种不是恐龙？", "options": ["鱼龙", "霸王龙", "腕龙", "副栉龙"], "a": 0, "e": "鱼龙生活在海里，是海生爬行动物，不是恐龙。"}, {"q": "下面哪一种不是恐龙？", "options": ["蛇颈龙", "梁龙", "异特龙", "剑龙"], "a": 0, "e": "蛇颈龙是海生爬行动物，不是恐龙。"}, {"q": "恐龙刚出现时主要是在下面哪个时期？", "options": ["三叠纪", "侏罗纪", "白垩纪", "第四纪"], "a": 0, "e": "恐龙最早出现在三叠纪。"}, {"q": "侏罗纪在三叠纪之后、哪个时期之前？", "options": ["白垩纪", "寒武纪", "石炭纪", "泥盆纪"], "a": 0, "e": "三叠纪之后是侏罗纪，再往后是白垩纪。"}, {"q": "霸王龙生活在下面哪个时期？", "options": ["晚白垩世", "早三叠世", "中侏罗世", "更新世"], "a": 0, "e": "霸王龙生活在晚白垩世。"}, {"q": "剑龙主要生活在下面哪个时期？", "options": ["晚侏罗世", "晚白垩世", "早三叠世", "全新世"], "a": 0, "e": "剑龙是侏罗纪代表恐龙之一。"}, {"q": "下面哪句是正确的？", "options": ["剑龙比霸王龙早很多出现", "霸王龙比剑龙早很多出现", "它们生活在完全同一时间", "两者都是现代动物"], "a": 0, "e": "剑龙比霸王龙早得多，二者之间相差约6600万年。"}, {"q": "三角龙最著名的特征是什么？", "options": ["三只角和大颈盾", "背上有船帆", "脖子特别长", "长满羽毛"], "a": 0, "e": "三角龙因三只角和巨大的颈盾而著名。"}, {"q": "剑龙背上的大板通常长在哪里？", "options": ["背部", "尾巴尖", "鼻子上", "脚底"], "a": 0, "e": "剑龙最显眼的特征就是背部的两排骨板。"}, {"q": "剑龙尾巴上的尖刺常被昵称为什么？", "options": ["尾刺锤", "头盔角", "骨盘", "长须"], "a": 0, "e": "中文科普常说“尾刺”或“尾刺锤”。"}, {"q": "甲龙最像下面哪种“装备”很多的动物？", "options": ["全身有装甲的坦克", "会飞的风筝", "长腿的鸵鸟", "会游泳的海豹"], "a": 0, "e": "甲龙全身骨质装甲发达，很像带护甲的坦克。"}, {"q": "许多甲龙类的尾巴末端像什么？", "options": ["大棒槌", "羽毛扇", "吸盘", "鱼鳍"], "a": 0, "e": "不少甲龙类有尾锤，可用于防御。"}, {"q": "梁龙、腕龙这一类长脖子大个子恐龙，通常属于哪一类？", "options": ["蜥脚类", "角龙类", "甲龙类", "伤齿龙类"], "a": 0, "e": "梁龙、腕龙等都属于蜥脚类恐龙。"}, {"q": "目前已知最大的恐龙大多属于哪一类？", "options": ["蜥脚类", "小盗龙类", "厚头龙类", "甲龙类"], "a": 0, "e": "最大的恐龙通常是蜥脚类巨型植食恐龙。"}, {"q": "下面哪一种是著名的长脖子植食恐龙？", "options": ["腕龙", "霸王龙", "迅猛龙", "异特龙"], "a": 0, "e": "腕龙是非常著名的长脖子植食恐龙。"}, {"q": "副栉龙头上的长长“冠”最像什么？", "options": ["向后伸的长管子", "两只大角", "一把扇子", "一圈鬃毛"], "a": 0, "e": "副栉龙最有名的特征就是头后方长长的中空头冠。"}, {"q": "许多科学家认为副栉龙的长头冠可能有什么作用？", "options": ["发声和展示", "喷水", "放电", "喷火"], "a": 0, "e": "头冠可能帮助发声、识别同类和展示。"}, {"q": "霸王龙主要吃什么？", "options": ["肉", "树叶", "果子", "贝壳泥"], "a": 0, "e": "霸王龙是大型食肉恐龙。"}, {"q": "三角龙主要吃什么？", "options": ["植物", "肉", "鱼", "昆虫"], "a": 0, "e": "三角龙是植食性恐龙。"}, {"q": "下面哪一种是食肉恐龙？", "options": ["异特龙", "三角龙", "甲龙", "梁龙"], "a": 0, "e": "异特龙是著名的大型食肉恐龙。"}, {"q": "下面哪一种主要是植食恐龙？", "options": ["剑龙", "霸王龙", "异特龙", "伶盗龙"], "a": 0, "e": "剑龙以植物为食。"}, {"q": "下面哪一种是生活在晚三叠世的早期恐龙代表？", "options": ["腔骨龙", "霸王龙", "甲龙", "三角龙"], "a": 0, "e": "腔骨龙是常见的晚三叠世恐龙代表。"}, {"q": "板龙是一种什么类型的恐龙？", "options": ["早期大型植食或杂食恐龙", "海生爬行动物", "飞行爬行动物", "现代鸟类"], "a": 0, "e": "板龙是晚三叠世常见的大型早期恐龙之一。"}, {"q": "伶盗龙（Velociraptor）真正的体型更接近哪一种？", "options": ["大火鸡", "大象", "长颈鹿", "公交车"], "a": 0, "e": "真实的伶盗龙远没有电影里那么大，更接近大型鸟类的体型。"}, {"q": "很多近鸟类恐龙的化石说明，它们身上可能长有什么？", "options": ["羽毛", "鳞片盔甲炮管", "鱼鳍", "象牙"], "a": 0, "e": "大量化石表明，很多恐龙尤其是兽脚类有羽毛或类似羽毛结构。"}, {"q": "下面关于伶盗龙的说法，哪句更接近科学认识？", "options": ["它很可能有羽毛", "它一定会喷毒液", "它有六条腿", "它生活在海底"], "a": 0, "e": "现有研究支持伶盗龙等近鸟类兽脚类带有羽毛。"}, {"q": "考古学家发现的恐龙脚印，属于哪一类化石？", "options": ["遗迹化石", "骨骼化石", "宝石化石", "火山化石"], "a": 0, "e": "脚印、巢穴、粪便等都属于遗迹化石。"}, {"q": "化石指的是什么？", "options": ["至少一万年以上的古生物证据", "刚掉下来的树叶", "现代动物的骨头", "人造玩具模型"], "a": 0, "e": "化石是非常古老的生物遗留证据，不只是骨头。"}, {"q": "下面哪一样也可能形成化石？", "options": ["脚印", "彩虹", "云朵", "影子"], "a": 0, "e": "脚印是典型的遗迹化石。"}, {"q": "“粪化石”最容易告诉科学家什么？", "options": ["动物吃过什么", "它会不会唱歌", "它的名字", "它的颜色一定是什么"], "a": 0, "e": "化石便便常能提供饮食线索。"}, {"q": "古生物学家主要研究什么？", "options": ["古代生命和化石", "未来机器人", "现代足球", "天气预报"], "a": 0, "e": "古生物学研究古代生命及其遗迹。"}, {"q": "很多恐龙蛋和巢穴化石可以帮助科学家了解什么？", "options": ["繁殖和养育后代", "火山怎么喷发", "海水为什么咸", "月亮为什么圆"], "a": 0, "e": "蛋和巢能帮助研究恐龙如何繁殖和照顾幼崽。"}, {"q": "翼龙最重要的本领是什么？", "options": ["有动力飞行", "会喷火", "会织网", "会打洞"], "a": 0, "e": "翼龙是最早实现有动力飞行的脊椎动物。"}, {"q": "下面关于翼龙的说法，哪句正确？", "options": ["它们不是恐龙", "它们就是会飞的鸟", "它们是鱼类", "它们都住在海底"], "a": 0, "e": "翼龙与恐龙是近亲，但不是恐龙本身。"}, {"q": "蛇颈龙和鱼龙主要生活在哪里？", "options": ["海洋", "沙漠", "树顶", "冰层下面的洞里"], "a": 0, "e": "蛇颈龙和鱼龙都属于海生爬行动物。"}, {"q": "鱼龙的身体外形最像哪类现代动物？", "options": ["海豚", "长颈鹿", "袋鼠", "蜗牛"], "a": 0, "e": "鱼龙身体流线型，很像海豚，但它不是哺乳动物。"}, {"q": "鱼龙属于什么动物？", "options": ["海生爬行动物", "真正的鱼", "鸟类", "昆虫"], "a": 0, "e": "鱼龙虽然名字里有“鱼”，但其实是爬行动物。"}, {"q": "蛇颈龙最容易让人记住的外形特点是什么？", "options": ["长脖子", "大船帆", "大尾锤", "鸟喙"], "a": 0, "e": "很多蛇颈龙以长脖子闻名。"}, {"q": "沧龙生活在什么时候最有名？", "options": ["晚白垩世", "早三叠世", "寒武纪", "石炭纪"], "a": 0, "e": "沧龙是晚白垩世著名的海中掠食者。"}, {"q": "沧龙属于哪一类动物？", "options": ["海生爬行动物", "恐龙", "哺乳动物", "两栖动物"], "a": 0, "e": "沧龙生活在海洋中，是海生爬行动物，不是恐龙。"}, {"q": "菊石属于哪一类生物的亲戚？", "options": ["章鱼和乌贼", "鲨鱼", "海龟", "海星"], "a": 0, "e": "菊石属于头足类，和章鱼、乌贼是亲戚。"}, {"q": "菊石最显眼的外壳通常像什么？", "options": ["卷起来的螺旋", "一把直尺", "一个方盒子", "一张网"], "a": 0, "e": "菊石的壳常呈漂亮的螺旋形。"}, {"q": "很多菊石在什么时候灭绝了？", "options": ["白垩纪末", "侏罗纪初", "人类出现后", "今天早上"], "a": 0, "e": "菊石在白垩纪末的大灭绝事件中消失。"}, {"q": "古代海洋里的菊石常被科学家拿来做什么？", "options": ["帮助判断岩层年代", "当天气计", "当电池", "当指南针"], "a": 0, "e": "因为菊石分布广、演化快，常用来判断岩层年代。"}, {"q": "最早的哺乳动物大约什么时候已经出现了？", "options": ["三叠纪晚期左右", "白垩纪末之后才出现", "冰河时代", "人类发明火之后"], "a": 0, "e": "真正的早期哺乳动物在三叠纪晚期左右已经出现。"}, {"q": "下面哪一种动物和恐龙曾经生活在同一时代？", "options": ["早期哺乳动物", "长毛猛犸象", "剑齿虎", "现代人"], "a": 0, "e": "早期哺乳动物和恐龙确实一起生活过。"}, {"q": "下面哪一种和恐龙不是同一时代的常见动物？", "options": ["长毛猛犸象", "翼龙", "菊石", "鱼龙"], "a": 0, "e": "猛犸象生活在很晚近的第四纪，不和恐龙同代。"}, {"q": "在恐龙时代，地球上的大陆曾经连成一个超级大陆，它叫？", "options": ["盘古大陆", "亚特兰蒂斯", "侏罗大陆", "火星大陆"], "a": 0, "e": "盘古大陆是古地理学中的超级大陆名称。"}, {"q": "盘古大陆在恐龙生活期间发生了什么变化？", "options": ["逐渐裂开", "突然变成一颗星星", "全部沉入海底", "一点都没变"], "a": 0, "e": "中生代期间，盘古大陆逐渐裂开，形成后来的大陆。"}, {"q": "三叠纪的气候常被描述为怎样？", "options": ["较热较干", "全年冰天雪地", "永远下雨", "和今天完全一样"], "a": 0, "e": "三叠纪普遍被认为较热较干，大沙漠很多。"}, {"q": "侏罗纪时，地球总体气候相比今天常被描述为？", "options": ["更温暖", "更寒冷", "完全没有海洋", "完全没有植物"], "a": 0, "e": "侏罗纪总体比今天暖，没有现代那样的极地冰盖。"}, {"q": "白垩纪是中生代的第几个时期？", "options": ["最后一个", "第一个", "第二个", "不存在"], "a": 0, "e": "白垩纪是中生代最后一个时期。"}, {"q": "许多科学家认为，白垩纪末大灭绝和什么事件密切相关？", "options": ["巨大天体撞击地球", "月亮掉下来", "地球忽然停转", "所有火山一夜变成冰山"], "a": 0, "e": "目前广泛接受的解释之一是巨大天体撞击造成全球环境剧变。"}, {"q": "下面哪句更符合科学共识？", "options": ["天体撞击让地球环境发生剧烈变化", "恐龙是因为不会游泳才灭绝", "所有恐龙都被一个猎人打败", "恐龙一夜之间全部变成石头"], "a": 0, "e": "撞击事件与环境剧变是广泛接受的重要原因。"}, {"q": "白垩纪末灭绝后，哪一类恐龙延续到了今天？", "options": ["鸟类", "三角龙", "霸王龙", "甲龙"], "a": 0, "e": "只有鸟类这一支延续到了今天。"}, {"q": "“非鸟类恐龙”这个说法主要是为了把谁区分开？", "options": ["现代鸟类", "鱼类", "昆虫", "哺乳动物"], "a": 0, "e": "因为鸟类也属于恐龙，所以会说“非鸟类恐龙”。"}, {"q": "下面哪一种最可能是兽脚类恐龙？", "options": ["霸王龙", "三角龙", "甲龙", "剑龙"], "a": 0, "e": "霸王龙属于兽脚类，是两足食肉恐龙代表。"}, {"q": "很多兽脚类恐龙最常见的行走方式是什么？", "options": ["两足行走", "六足爬行", "无足滑行", "只会飞"], "a": 0, "e": "很多兽脚类都主要用两条后腿行走。"}, {"q": "蜥脚类恐龙最常见的特点是哪一组？", "options": ["长脖子、长尾巴、四足行走", "短脖子、会飞、吃鱼", "有翅膀、会潜水、长喙", "有壳、慢吞吞、会钻土"], "a": 0, "e": "蜥脚类通常体型巨大，长脖子长尾巴，四足行走。"}, {"q": "三角龙属于哪一大类恐龙？", "options": ["角龙类", "蜥脚类", "甲龙类", "兽脚类"], "a": 0, "e": "三角龙是角龙类的著名代表。"}, {"q": "剑龙属于哪一大类恐龙？", "options": ["剑龙类", "角龙类", "伤齿龙类", "沧龙类"], "a": 0, "e": "剑龙是剑龙类代表。"}, {"q": "甲龙最擅长下面哪种“生存办法”？", "options": ["靠装甲保护自己", "靠长翅膀飞走", "靠喷水躲敌人", "靠变成透明"], "a": 0, "e": "甲龙以厚重装甲和部分种类的尾锤著称。"}, {"q": "很多恐龙蛋、巢和脚印说明，科学家研究恐龙时不只看骨头，还会看什么？", "options": ["生活痕迹", "魔法书", "天气预报", "星座表"], "a": 0, "e": "遗迹化石能帮助研究恐龙行为。"}, {"q": "化石通常保存在什么东西里？", "options": ["岩石层里", "云朵里", "塑料盒里", "电脑屏幕里"], "a": 0, "e": "大多数化石被埋藏并保存在岩石层中。"}, {"q": "“古生物”这个词，最适合指什么？", "options": ["很久以前生活过的生物", "今天刚出生的小动物", "未来机器人", "神话里的龙"], "a": 0, "e": "古生物就是生活在古代地球上的生命。"}, {"q": "下面哪一种和恐龙同属爬行动物大类？", "options": ["翼龙", "蝙蝠", "麻雀", "海豚"], "a": 0, "e": "翼龙是爬行动物。蝙蝠和海豚是哺乳动物，麻雀是鸟类。"}, {"q": "翼龙的翅膀主要是由什么支撑的？", "options": ["特别长的第四根手指和翼膜", "羽毛扇", "硬壳板", "两根角"], "a": 0, "e": "翼龙的翼膜主要由特别延长的手指支撑。"}, {"q": "鱼龙会不会下水游泳？", "options": ["会，它本来就生活在海里", "不会，它只会在树上跳", "不会，它只住沙漠", "不会，它是现代鸟"], "a": 0, "e": "鱼龙是典型海生爬行动物。"}, {"q": "下面哪种说法对蛇颈龙更合适？", "options": ["是海生爬行动物", "是有壳的头足类", "是会飞的鸟类", "是现代哺乳动物"], "a": 0, "e": "蛇颈龙属于海生爬行动物。"}, {"q": "菊石更像下面哪类古生物？", "options": ["带壳的头足类动物", "长脖子恐龙", "有羽毛的兽脚类", "披甲的甲龙"], "a": 0, "e": "菊石是头足类，不是恐龙。"}, {"q": "下面哪一种最可能出现在恐龙时代的天空中？", "options": ["翼龙", "蝙蝠", "燕子", "直升机"], "a": 0, "e": "翼龙活在中生代，是那个时代天空的重要成员。"}, {"q": "下面哪一种最可能出现在恐龙时代的海洋中？", "options": ["鱼龙", "海象", "海牛", "企鹅"], "a": 0, "e": "鱼龙是中生代海洋里的著名成员。"}, {"q": "下面哪一种最可能出现在恐龙时代的陆地上？", "options": ["早期小型哺乳动物", "现代人类", "长毛猛犸象", "家猫"], "a": 0, "e": "早期小型哺乳动物在恐龙时代已经存在。"}, {"q": "发现新化石后，科学家为什么还要反复研究和比对？", "options": ["因为科学结论要靠证据", "因为化石会自己说话", "因为答案都在动画片里", "因为越快越好不用证据"], "a": 0, "e": "科学研究要反复比对证据，才能得到更可靠的结论。"}];
+    let questions = [], index = 0, score = 0, correctCount = 0, answered = false;
+    function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+    function startGame(){ questions=shuffle(allQuestions); index=0; score=0; correctCount=0; answered=false; renderQuestion(); }
+    function renderStart(){
+      const app=document.getElementById('app');
+      app.innerHTML=`<div class="start"><h2>准备进入恐龙世界了吗？</h2><p>这里有 <strong>80 张知识卡片</strong>。每次会出现一道选择题。<br>答对一题 <strong>+10 分</strong>，答错 <strong>不扣分</strong>。<br>做完后会显示总分和答对题数。</p><div class="controls"><button class="btn" onclick="startGame()">开始答题</button></div></div>`;
+    }
+    function renderQuestion(){
+      const q=questions[index], app=document.getElementById('app'), progress=(index/questions.length)*100;
+      app.innerHTML=`
+        <div class="stats">
+          <div class="stat"><div class="k">当前分数</div><div class="v">${score}</div></div>
+          <div class="stat"><div class="k">答对题数</div><div class="v">${correctCount}</div></div>
+          <div class="stat"><div class="k">当前题号</div><div class="v">${index+1} / ${questions.length}</div></div>
+          <div class="stat"><div class="k">每题得分</div><div class="v">10</div></div>
+        </div>
+        <div class="progress"><div class="bar" style="width:${progress}%"></div></div>
+        <div class="qnum">知识卡片 ${index+1}</div>
+        <div class="question">${q.q}</div>
+        <div class="options">
+          ${q.options.map((op,i)=>`<button class="option" id="op-${i}" onclick="choose(${i})">${String.fromCharCode(65+i)}. ${op}</button>`).join('')}
+        </div>
+        <div class="feedback" id="feedback"></div>
+        <div class="controls"><button class="btn" onclick="nextQuestion()" id="nextBtn" style="display:none;">下一题</button></div>`;
+      answered=false;
+    }
+    function choose(i){
+      if(answered) return; answered=true;
+      const q=questions[index], isRight=i===q.a;
+      q.options.forEach((_,idx)=>{ const btn=document.getElementById(`op-${idx}`); btn.disabled=true; if(idx===q.a) btn.classList.add('correct'); if(idx===i && idx!==q.a) btn.classList.add('wrong'); });
+      if(isRight){ score += 10; correctCount += 1; }
+      const feedback=document.getElementById('feedback');
+      feedback.className='feedback show ' + (isRight ? 'good' : 'bad');
+      feedback.innerHTML=`<div><strong>${isRight ? '答对了，真棒！' : '这题答错了，也没关系！'}</strong></div><div class="explain">正确答案：<strong>${String.fromCharCode(65+q.a)}. ${q.options[q.a]}</strong><br>${q.e}</div>`;
+      document.getElementById('nextBtn').style.display='inline-block';
+    }
+    function nextQuestion(){ index += 1; if(index>=questions.length){ renderResult(); } else { renderQuestion(); } }
+    function renderResult(){
+      const app=document.getElementById('app'); const percent=Math.round((correctCount/questions.length)*100);
+      let title='太厉害了，恐龙小博士！'; if(score<300) title='你已经是勇敢的古生物探险员啦！'; else if(score<600) title='你越来越像小小古生物学家了！';
+      app.innerHTML=`<div class="result"><h2>${title}</h2><div class="big-score">${score} 分</div><p>你一共答对了 <strong>${correctCount}</strong> 题，正确率约 <strong>${percent}%</strong>。<br>满分是 <strong>800 分</strong>。</p><div class="controls"><button class="btn" onclick="startGame()">再玩一次</button></div></div>`;
+    }
+    renderStart();
+  </script>
+</body>
+</html>
