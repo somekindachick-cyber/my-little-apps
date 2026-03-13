@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ 彩色袜子生成器 ✨</title>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --primary-color: #ff6b6b;
+            --accent-color: #4ecdc4;
+            --text-main: #2d3436;
+            --text-sub: #636e72;
+            --shadow: 0 10px 30px rgba(0,0,0,0.1);
+            --font-title: "Impact", "Arial Black", sans-serif;
+            --font-body: "SimSun", "宋体", serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-body);
+            background: #ffe2e2;
+            background-image: 
+                radial-gradient(#ff9a9e 20%, transparent 20%),
+                radial-gradient(#fecfef 20%, transparent 20%);
+            background-size: 50px 50px;
+            background-position: 0 0, 25px 25px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-main);
+        }
+
+        .app-container {
+            width: 90%;
+            max-width: 1000px;
+            background: var(--card-bg);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            padding: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            backdrop-filter: blur(10px);
+            border: 4px solid #fff;
+        }
+
+        /* 标题区 */
+        header {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-family: var(--font-title);
+            font-size: 3.5rem;
+            color: var(--primary-color);
+            text-shadow: 3px 3px 0px #fff, 6px 6px 0px rgba(0,0,0,0.1);
+            margin: 0;
+            letter-spacing: 2px;
+            transform: rotate(-2deg);
+        }
+
+        p.subtitle {
+            color: var(--text-sub);
+            font-size: 1.1rem;
+            margin-top: 10px;
+        }
+
+        /* 左侧：生成器 */
+        .generator-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #fff;
+            padding: 30px;
+            border-radius: 20px;
+            border: 2px dashed #ddd;
+            position: relative;
+        }
+
+        .canvas-box {
+            width: 320px;
+            height: 320px;
+            background: #f8f9fa;
+            border-radius: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 25px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        canvas {
+            image-rendering: pixelated; /* 像素清晰关键 */
+            width: 280px;
+            height: 280px;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        canvas:hover {
+            transform: scale(1.05) rotate(2deg);
+        }
+
+        .info-card {
+            width: 100%;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .sock-name {
+            font-family: var(--font-title);
+            font-size: 1.8rem;
+            color: var(--text-main);
+            margin: 0 0 8px 0;
+        }
+
+        .sock-desc {
+            font-size: 0.95rem;
+            color: var(--text-sub);
+            line-height: 1.5;
+            min-height: 3em;
+        }
+
+        /* 评分星星 */
+        .stars {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin: 15px 0;
+            cursor: pointer;
+        }
+
+        .star {
+            font-size: 1.8rem;
+            color: #eee;
+            transition: all 0.2s;
+        }
+
+        .star.active {
+            color: #ffd700;
+            transform: scale(1.2);
+            text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+        }
+
+        /* 按钮组 */
+        .controls {
+            display: flex;
+            gap: 15px;
+            width: 100%;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 50px;
+            font-family: var(--font-body);
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.1);
+        }
+
+        button:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        .btn-gen {
+            background: var(--primary-color);
+            color: white;
+        }
+        .btn-gen:hover { background: #ff5252; }
+
+        .btn-save {
+            background: var(--accent-color);
+            color: white;
+            flex: 0.6;
+        }
+        .btn-save:hover { background: #45b7af; }
+
+        /* 右侧：名人堂 */
+        .collection-panel {
+            background: #fff;
+            border-radius: 20px;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            max-height: 600px;
+        }
+
+        .panel-title {
+            font-family: var(--font-title);
+            font-size: 1.5rem;
+            color: var(--text-main);
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+
+        .gallery {
+            flex: 1;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 15px;
+            padding-right: 5px;
+        }
+
+        /* 滚动条美化 */
+        .gallery::-webkit-scrollbar { width: 6px; }
+        .gallery::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
+
+        .gallery-item {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            position: relative;
+        }
+
+        .gallery-item:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-color);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .gallery-item img {
+            width: 60px;
+            height: 60px;
+            image-rendering: pixelated;
+            margin-bottom: 8px;
+        }
+
+        .g-name {
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-align: center;
+            color: var(--text-main);
+            margin-bottom: 4px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .g-stars { font-size: 0.7rem; color: #ffd700; }
+
+        .del-btn {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            line-height: 20px;
+            cursor: pointer;
+            display: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .gallery-item:hover .del-btn { display: block; }
+
+        .empty-msg {
+            text-align: center;
+            color: #aaa;
+            margin-top: 50px;
+            font-style: italic;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                padding: 20px;
+                margin: 20px 0;
+            }
+            h1 { font-size: 2.5rem; }
+            .canvas-box { width: 260px; height: 260px; }
+            canvas { width: 220px; height: 220px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <h1>SOCKS GENERATOR</h1>
+        <p class="subtitle">彩色袜子生成器</p>
+    </header>
+
+    <!-- 左侧生成区 -->
+    <div class="generator-panel">
+        <div class="canvas-box">
+            <canvas id="sockCanvas" width="16" height="16"></canvas>
+        </div>
+
+        <div class="info-card">
+            <h2 class="sock-name" id="dispName">正在编织...</h2>
+            <p class="sock-desc" id="dispDesc">...</p>
+        </div>
+
+        <div class="stars" id="starContainer">
+            <span class="star" data-val="1">★</span>
+            <span class="star" data-val="2">★</span>
+            <span class="star" data-val="3">★</span>
+            <span class="star" data-val="4">★</span>
+            <span class="star" data-val="5">★</span>
+        </div>
+
+        <div class="controls">
+            <button class="btn-gen" onclick="generateNewSock()">🎲 生成新袜子</button>
+            <button class="btn-save" onclick="saveToCollection()">💾 收藏</button>
+        </div>
+    </div>
+
+    <!-- 右侧收藏区 -->
+    <div class="collection-panel">
+        <div class="panel-title">🏆 我的袜子收藏</div>
+        <div class="gallery" id="galleryGrid">
+            <!-- 动态插入 -->
+        </div>
+        <div id="emptyState" class="empty-msg" style="display:none;">
+            还没有收藏任何袜子<br>快去生成一双独特的吧！
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // 1. 核心数据：基于你提供的 ASCII 图形重构的 16x16 袜子掩码
+    // ==========================================
+    // 0: 空白
+    // 1: 主体 (粉色区域)
+    // 2: 袜口 (灰色罗纹区域)
+    // 3: 阴影/脚后跟/脚尖 (深色区域)
+    const SOCK_MAP = [
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], // 0
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], // 1
+        [0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0], // 2:          █████ (起始列 9)
+        [0,0,0,0,0,0,0,0,0,2,2,2,2,2,0,0], // 3:          ▓▓▓▓ (罗纹)
+        [0,0,0,0,0,0,0,0,0,2,2,2,2,2,0,0], // 4:          ▓▓▓▓ (罗纹)
+        [0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0], // 5:          █████
+        [0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0], // 6:          █████
+        [0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1], // 7:        ████████ (向左扩 2 格，向右扩 3 格)
+        [0,0,0,0,1,1,1,1,1,1,1,1,1,3,0,0], // 8:    ██████████▓ (向左扩 4 格，最右侧是脚后跟 3)
+        [0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0], // 9:  ████████ (向左扩 2 格，向右收缩)
+        [0,1,3,1,1,1,1,1,0,0,0,0,0,0,0,0], // 10: ▓█████ (最左侧是脚尖阴影 3，然后主体)
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], // 11
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], // 12
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], // 13
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], // 14
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]  // 15
+    ];
+
+    // ==========================================
+    // 2. 文案库
+    // ==========================================
+    const ADJECTIVES = ["慵懒的", "赛博", "草莓味", "量子", "闪闪发光", "黏糊糊", "复古", "隐形", "麻辣", "会跳舞的"];
+    const NOUNS = ["深海袜", "火箭袜", "猫咪爪袜", "时间旅行袜", "彩虹屁袜", "黑洞袜", "摸鱼袜", "恋爱袜", "加班袜", "幸运袜"];
+    const DESCRIPTIONS = [
+        "穿上后脚趾会自动跳踢踏舞。",
+        "据说能增加 20% 的跑步速度，但只限左脚。",
+        "小心！如果在雨天穿它，可能会变成一只仓鼠。",
+        "这双袜子散发着淡淡的芝士味。",
+        "来自 2077 年的时尚单品。",
+        "穿上它，老板就看不见你在摸鱼了。",
+        "这双袜子有自己的想法，偶尔会自己走路。",
+        "集齐七双可以召唤神龙（并没有）。",
+        "这是用独角兽的鬃毛编织而成的。",
+        "警告：可能导致过度自信。"
+    ];
+
+    // ==========================================
+    // 3. 状态与初始化
+    // ==========================================
+    let currentSock = null;
+    let currentRating = 0;
+    const canvas = document.getElementById('sockCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // ==========================================
+    // 4. 绘图核心逻辑
+    // ==========================================
+    
+    // 颜色调整工具 (变亮/变暗)
+    function adjustColor(hex, amount) {
+        let num = parseInt(hex.replace("#",""), 16),
+        amt = Math.round(2.55 * amount),
+        R = (num >> 16) + amt,
+        B = (num >> 8 & 0x00FF) + amt,
+        G = (num & 0x0000FF) + amt;
+        return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (B<255?B<1?0:B:255)*0x100 + (G<255?G<1?0:G:255)).toString(16).slice(1);
+    }
+
+    // 生成随机柔和色
+    function getRandomColor() {
+        const r = Math.floor(Math.random() * 100 + 155); 
+        const g = Math.floor(Math.random() * 100 + 155);
+        const b = Math.floor(Math.random() * 100 + 155);
+        return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    }
+
+    function drawSock(colorHex) {
+        ctx.clearRect(0, 0, 16, 16);
+        
+        // 预计算颜色变体
+        const colorLight = adjustColor(colorHex, 15);
+        const colorDark = adjustColor(colorHex, -15);
+        const colorShadow = adjustColor(colorHex, -40);
+        const colorRimLight = adjustColor(colorHex, 30);
+        const colorRimDark = adjustColor(colorHex, -30);
+
+        for (let y = 0; y < 16; y++) {
+            for (let x = 0; x < 16; x++) {
+                const type = SOCK_MAP[y][x];
+                if (type === 0) continue;
+
+                let finalColor = colorHex;
+
+                if (type === 2) {
+                    // 袜口罗纹：明暗交替条纹
+                    finalColor = (x % 2 === 0) ? colorRimLight : colorRimDark;
+                } else if (type === 3) {
+                    // 阴影区 (脚后跟/脚尖)
+                    finalColor = colorShadow;
+                } else if (type === 1) {
+                    // 主体：添加轻微噪点质感
+                    if (Math.random() > 0.85) {
+                        finalColor = Math.random() > 0.5 ? colorLight : colorDark;
+                    }
+                }
+
+                // 绘制像素 (居中偏移 0.5 以避免抗锯齿模糊)
+                ctx.fillStyle = finalColor;
+                ctx.fillRect(x + 0.5, y + 0.5, 1, 1);
+            }
+        }
+    }
+
+    // ==========================================
+    // 5. 业务逻辑
+    // ==========================================
+    function generateNewSock() {
+        const color = getRandomColor();
+        const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+        const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+        const desc = DESCRIPTIONS[Math.floor(Math.random() * DESCRIPTIONS.length)];
+
+        currentSock = {
+            id: Date.now(),
+            color: color,
+            name: `${adj}${noun}`,
+            desc: desc,
+            rating: 0,
+            date: new Date().toLocaleDateString()
+        };
+        currentRating = 0;
+
+        drawSock(color);
+        updateUI();
+        resetStars();
+        
+        // 小动画效果
+        const c = document.querySelector('canvas');
+        c.style.transform = 'scale(0.8) rotate(-10deg)';
+        setTimeout(() => c.style.transform = 'scale(1) rotate(0deg)', 200);
+    }
+
+    function updateUI() {
+        document.getElementById('dispName').textContent = currentSock.name;
+        document.getElementById('dispDesc').textContent = `"${currentSock.desc}"`;
+        document.getElementById('dispName').style.color = currentSock.color;
+    }
+
+    // 评分系统
+    const stars = document.querySelectorAll('.star');
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            const val = parseInt(star.getAttribute('data-val'));
+            currentRating = val;
+            if(currentSock) currentSock.rating = val;
+            renderStars(val);
+        });
+    });
+
+    function renderStars(count) {
+        stars.forEach((s, i) => {
+            s.classList.toggle('active', i < count);
+        });
+    }
+
+    function resetStars() {
+        renderStars(0);
+    }
+
+    // 保存系统
+    function saveToCollection() {
+        if (!currentSock) return;
+        
+        // 获取当前画布图像
+        const imgData = canvas.toDataURL('image/png');
+        currentSock.image = imgData;
+
+        let collection = JSON.parse(localStorage.getItem('mySocks') || '[]');
+        collection.unshift(currentSock);
+        if (collection.length > 50) collection.pop(); // 限制数量
+
+        localStorage.setItem('mySocks', JSON.stringify(collection));
+        
+        alert(`✅ "${currentSock.name}" 已加入收藏夹！`);
+        renderGallery();
+    }
+
+    // 渲染画廊
+    function renderGallery() {
+        const grid = document.getElementById('galleryGrid');
+        const empty = document.getElementById('emptyState');
+        const collection = JSON.parse(localStorage.getItem('mySocks') || '[]');
+
+        grid.innerHTML = '';
+        
+        if (collection.length === 0) {
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
+
+        collection.forEach((sock, index) => {
+            const item = document.createElement('div');
+            item.className = 'gallery-item';
+            
+            let starStr = '★'.repeat(sock.rating);
+            
+            item.innerHTML = `
+                <button class="del-btn" onclick="deleteSock(${index})">×</button>
+                <img src="${sock.image}" alt="${sock.name}">
+                <div class="g-name">${sock.name}</div>
+                <div class="g-stars">${starStr}</div>
+            `;
+
+            // 点击加载回生成器
+            item.onclick = (e) => {
+                if(e.target.className !== 'del-btn') loadSock(sock);
+            };
+
+            grid.appendChild(item);
+        });
+    }
+
+    function deleteSock(index) {
+        if(confirm('确定要扔掉这双袜子吗？')) {
+            let collection = JSON.parse(localStorage.getItem('mySocks') || '[]');
+            collection.splice(index, 1);
+            localStorage.setItem('mySocks', JSON.stringify(collection));
+            renderGallery();
+        }
+    }
+
+    function loadSock(sock) {
+        currentSock = sock;
+        currentRating = sock.rating;
+        drawSock(sock.color);
+        updateUI();
+        renderStars(sock.rating);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 启动
+    window.onload = () => {
+        generateNewSock();
+        renderGallery();
+    };
+
+</script>
+</body>
+</html>
+
+
