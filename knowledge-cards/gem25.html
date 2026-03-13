@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>25-35岁青年跨界百科挑战</title>
+    <title>百科挑战</title>
     <style>
         :root {
             --primary: #8b5cf6; --bg: #030712; --card: rgba(30, 41, 59, 0.7);
@@ -82,8 +82,7 @@
 </div>
 
 <script>
-    // 题目数据库
-  // --- 完整50题：独立图片链接版 ---
+
 const db = [
     // --- 生物与人体 (1-10) ---
     { q: "婴儿出生时约有300块骨头，成年后约为？", a: ["206块", "250块", "180块"], c: 0, cat: "生物", img: "https://images.unsplash.com/photo-1530210124550-912dc1381cb8?w=600" },
@@ -146,21 +145,6 @@ const db = [
     { q: "世界第一长河是？", a: ["尼罗河", "亚马逊河", "长江"], c: 0, cat: "常识", img: "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=600" }
 ];
 
-// --- 增强：如果 Unsplash 图片加载失败，备用分类搜索功能 ---
-function getBackupImage(category) {
-    const keywords = {
-        "生物": "nature,biology",
-        "物理": "physics,technology",
-        "化学": "chemistry,lab",
-        "天文": "space,galaxy",
-        "地理": "earth,mountain",
-        "流行": "pop-culture,cyberpunk",
-        "常识": "knowledge,library"
-    };
-    const key = keywords[category] || "abstract";
-    // 返回一个随机的分类图
-    return `https://source.unsplash.com/featured/600x400?${key}&sig=${Math.random()}`;
-}
     while(db.length < 50) {
         db.push({...db[db.length % 10], q: db[db.length % 10].q + " (复习题)"});
     }
