@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>存在主义：速度抢位</title>
+    <title>存在主义：3秒速决</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: "serif"; touch-action: none; }
         #game-stage { 
@@ -18,10 +18,8 @@
             transform: translate(-50%, -50%); 
         }
 
-        /* 玩家圣光 */
         .player { filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.9)); cursor: grab; z-index: 20; }
         
-        /* 胜利者（坐在椅子上的人） */
         .winner-sitting {
             position: absolute; width: 100%; height: 100%;
             background-image: url('image_782124.jpg');
@@ -35,6 +33,15 @@
             border: 3px solid #000; padding: 10px 40px; margin-top: 20px;
             pointer-events: auto; box-shadow: 8px 8px 0px #000;
         }
+        #msg { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
+        #countdown { font-size: 48px; color: #ff0000; font-weight: 900; display: none; animation: pulse 1s infinite; }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
         .btn { background: #000; color: #fff; padding: 12px 35px; border: none; cursor: pointer; font-size: 20px; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
@@ -44,8 +51,9 @@
     <div id="winner-layer" class="winner-sitting"></div>
     <div id="ui">
         <div class="panel">
-            <div id="status">关卡 <span id="lv-num">1</span></div>
-            <div id="msg">准备好，抢占唯一的位置。</div>
+            <div id="status">第 <span id="lv-num">1</span> 关</div>
+            <div id="msg">点击确证开始</div>
+            <div id="countdown">3</div>
             <button id="main-btn" class="btn" onclick="initAndStart()">确证存在</button>
         </div>
     </div>
@@ -59,6 +67,7 @@
     const stage = document.getElementById('game-stage');
     const winnerLayer = document.getElementById('winner-layer');
     const msgText = document.getElementById('msg');
+    const countdownEl = document.getElementById('countdown');
     const mainBtn = document.getElementById('main-btn');
     const lvNum = document.getElementById('lv-num');
 
@@ -87,107 +96,4 @@
     function startLevel() {
         isGaming = true; isDragging = false;
         mainBtn.style.display = 'none';
-        winnerLayer.style.opacity = '0';
-        msgText.innerText = "快！别让 AI 抢先！";
-        
-        document.querySelectorAll('.philosopher').forEach(p => p.remove());
-
-        // 玩家初始位置
-        playerPos = { x: window.innerWidth * 0.85, y: window.innerHeight * 0.85 };
-        playerObj = document.createElement('img');
-        playerObj.src = 'image_78215a.png';
-        playerObj.className = 'philosopher player';
-        updatePos(playerObj, playerPos.x, playerPos.y);
-        stage.appendChild(playerObj);
-        
-        bindDrag(playerObj);
-
-        // 生成 AI 竞争者
-        for (let i = 0; i < currentLevel; i++) createAI();
-        playTone(440, 'sine', 0.2);
-    }
-
-    function updatePos(el, x, y) { el.style.left = x + 'px'; el.style.top = y + 'px'; }
-
-    function createAI() {
-        const ai = document.createElement('img');
-        ai.src = 'image_78215a.png';
-        ai.className = 'philosopher ai';
-        let aiX = Math.random() > 0.5 ? -200 : window.innerWidth + 200;
-        let aiY = Math.random() * window.innerHeight;
-        updatePos(ai, aiX, aiY);
-        stage.appendChild(ai);
-
-        // AI 的速度随关卡提升
-        const startDelay = 500 + Math.random() * 800;
-        const duration = Math.max(0.4, 2.8 - (currentLevel * 0.3));
-
-        setTimeout(() => {
-            if (!isGaming) return;
-            ai.style.transition = `all ${duration}s cubic-bezier(0.4, 0, 0.2, 1)`;
-            updatePos(ai, chairPos.x, chairPos.y);
-            
-            // AI 达到的瞬间判定
-            setTimeout(() => {
-                if (isGaming) endRound(false); // AI 赢了
-            }, duration * 1000);
-        }, startDelay);
-    }
-
-    function bindDrag(el) {
-        const start = (e) => {
-            if (!isGaming) return;
-            e.preventDefault();
-            isDragging = true;
-            const pos = e.touches ? e.touches[0] : e;
-            startMouse = { x: pos.clientX, y: pos.clientY };
-            startObj = { x: playerPos.x, y: playerPos.y };
-        };
-        const move = (e) => {
-            if (!isDragging || !isGaming) return;
-            const pos = e.touches ? e.touches[0] : e;
-            playerPos.x = startObj.x + (pos.clientX - startMouse.x);
-            playerPos.y = startObj.y + (pos.clientY - startMouse.y);
-            updatePos(el, playerPos.x, playerPos.y);
-
-            const dist = Math.sqrt(Math.pow(playerPos.x - chairPos.x, 2) + Math.pow(playerPos.y - chairPos.y, 2));
-            if (dist < 50) { // 玩家抢先到达
-                isDragging = false;
-                endRound(true);
-            }
-        };
-        el.addEventListener('mousedown', start);
-        el.addEventListener('touchstart', start, {passive: false});
-        window.addEventListener('mousemove', move);
-        window.addEventListener('touchmove', move, {passive: false});
-        window.addEventListener('mouseup', () => isDragging = false);
-        window.addEventListener('touchend', () => isDragging = false);
-    }
-
-    function endRound(win) {
-        if (!isGaming) return;
-        isGaming = false;
-        
-        // 瞬间清理场上的站立者
-        document.querySelectorAll('.philosopher').forEach(p => p.style.opacity = '0');
-
-        // 显示坐下的结果
-        winnerLayer.style.opacity = '1';
-
-        if (win) {
-            playTone(880, 'sine', 0.4);
-            currentLevel++;
-            msgText.innerText = "你抢到了位置！关卡提升。";
-        } else {
-            playTone(150, 'sawtooth', 0.4);
-            // 可以在这里稍微调整 AI 赢了后的特殊视觉，这里直接展示 AI 坐下的背景图
-            msgText.innerText = "捷足先登！AI 占据了你的位置。";
-        }
-        
-        lvNum.innerText = currentLevel;
-        mainBtn.style.display = 'inline-block';
-        mainBtn.innerText = win ? "挑战更高难度" : "重拾存在感";
-    }
-</script>
-</body>
-</html>
+        countdownEl.style.display =
