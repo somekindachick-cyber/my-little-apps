@@ -3,139 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>存在主义：巨型哲学家</title>
+    <title>存在主义：声色混战版</title>
     <style>
-        body, html { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            overflow: hidden; background: #000; font-family: "serif"; 
-            touch-action: none; 
-        }
-        
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: "serif"; touch-action: none; }
         #game-stage { 
             position: relative; width: 100vw; height: 100vh; 
-            background-image: url('image_78211d.jpg');
-            background-size: cover;
-            background-position: center;
-            transition: background-image 0.4s ease-in-out;
+            background-image: url('image_78211d.jpg'); 
+            background-size: cover; background-position: center;
         }
 
-        /* 缩小椅子判定区：增加操作精度要求 */
-        #chair-hitbox {
-            position: absolute; width: 60px; height: 60px;
-            left: 50%; top: 50%; transform: translate(-50%, -50%);
-            z-index: 1; pointer-events: none;
-            /* border: 1px dashed rgba(255,255,255,0.3); 可视化调试用 */
+        /* 震动动画 */
+        .shake { animation: shakeAnim 0.3s; }
+        @keyframes shakeAnim {
+            0% { transform: translate(0,0); }
+            25% { transform: translate(5px, 5px); }
+            50% { transform: translate(-5px, -5px); }
+            75% { transform: translate(5px, -5px); }
+            100% { transform: translate(0,0); }
         }
+        
+        #chair-hitbox { position: absolute; width: 40px; height: 40px; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1; pointer-events: none; }
 
         .philosopher {
-            position: absolute; 
-            width: 200px; /* 显著放大哲学家尺寸 */
-            z-index: 10;
+            position: absolute; width: 220px; z-index: 10;
             user-select: none; -webkit-user-drag: none;
-            transition: transform 0.2s ease, opacity 0.3s;
+            transition: opacity 0.3s;
         }
 
-        /* 玩家：初始位置在右下角 */
-        .player {
-            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.9));
-            cursor: grab;
-            right: 5%; bottom: 5%;
-        }
-        .player:active { cursor: grabbing; transform: scale(1.05); }
+        .player { filter: drop-shadow(0 0 25px rgba(255, 215, 0, 0.9)); cursor: grab; right: 5%; bottom: 5%; z-index: 20; }
+        .ai { filter: none; pointer-events: none; }
 
-        /* AI：竞争者 */
-        .ai { filter: grayscale(1) brightness(0.7) opacity(0.8); pointer-events: none; }
-
-        /* UI 面板 */
-        #ui {
-            position: absolute; top: 0; width: 100%; text-align: center;
-            pointer-events: none; z-index: 100;
+        .bubble {
+            position: absolute; background: white; border: 2px solid #000;
+            padding: 5px 12px; border-radius: 15px; font-size: 14px;
+            font-weight: bold; white-space: nowrap; pointer-events: none;
+            z-index: 50; animation: fadeUp 1.2s forwards;
         }
+
+        @keyframes fadeUp {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-60px); opacity: 0; }
+        }
+
+        #ui { position: absolute; top: 0; width: 100%; text-align: center; pointer-events: none; z-index: 100; }
         .panel {
             display: inline-block; background: rgba(255, 255, 255, 0.9);
             border: 3px solid #000; padding: 10px 40px; margin-top: 20px;
-            pointer-events: auto; box-shadow: 10px 10px 0px #000;
+            pointer-events: auto; box-shadow: 8px 8px 0px #000;
         }
-        .btn { 
-            background: #000; color: #fff; padding: 12px 35px; 
-            border: none; cursor: pointer; font-size: 20px; 
-            font-weight: bold; margin: 10px 0;
-        }
-        #level-info { font-size: 24px; font-weight: bold; }
+        .btn { background: #000; color: #fff; padding: 12px 35px; border: none; cursor: pointer; font-size: 20px; font-weight: bold; margin: 10px 5px; }
+        #audio-toggle { position: absolute; bottom: 20px; left: 20px; pointer-events: auto; background: white; border: 1px solid #000; padding: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div id="game-stage">
     <div id="chair-hitbox"></div>
-
     <div id="ui">
         <div class="panel">
-            <div id="level-info">关卡 1</div>
-            <div id="status">椅子很小，而你如此沉重。</div>
-            <button id="main-btn" class="btn" onclick="startLevel()">开始争夺</button>
+            <div id="level-info">关卡 <span id="lv-num">1</span></div>
+            <div id="status">宇宙一片寂静，直到你开始争夺。</div>
+            <button id="main-btn" class="btn" onclick="startLevel()">开始轮回</button>
         </div>
     </div>
+    <div id="audio-toggle" onclick="toggleMute()">🔊 音效已开启</div>
 </div>
 
 <script>
     let currentLevel = 1;
     let isGaming = false;
     let isDragging = false;
+    let muted = false;
     let playerObj, startX, startY, initX, initY;
 
+    const quotes = ["上帝已死！", "椅子才是本体！", "我抢故我在！", "虚无真冷啊！", "给老夫让座！", "这是我的意志！"];
     const stage = document.getElementById('game-stage');
     const hitbox = document.getElementById('chair-hitbox');
     const statusText = document.getElementById('status');
-    const levelText = document.getElementById('level-info');
     const mainBtn = document.getElementById('main-btn');
+    const lvNum = document.getElementById('lv-num');
+
+    // --- 音效系统 (Web Audio API) ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playTone(freq, type, duration) {
+        if(muted) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function toggleMute() {
+        muted = !muted;
+        document.getElementById('audio-toggle').innerText = muted ? "🔇 音效已关闭" : "🔊 音效已开启";
+    }
 
     function startLevel() {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
         isGaming = true;
         isDragging = false;
         mainBtn.style.display = 'none';
-        statusText.innerText = "用你的存在填满那个座位！";
+        statusText.innerText = "冲！冲！冲！";
         stage.style.backgroundImage = "url('image_78211d.jpg')";
+        stage.classList.remove('shake');
         
-        document.querySelectorAll('.philosopher').forEach(p => p.remove());
+        document.querySelectorAll('.philosopher, .bubble').forEach(p => p.remove());
 
-        // 生成玩家：右下角
         playerObj = document.createElement('img');
         playerObj.src = 'image_78215a.png';
         playerObj.className = 'philosopher player';
         stage.appendChild(playerObj);
-        
         addDragLogic(playerObj);
 
-        // 生成AI
-        for (let i = 0; i < currentLevel; i++) {
-            createAI(i);
-        }
+        for (let i = 0; i < currentLevel; i++) createAI(i);
+        playTone(440, 'sine', 0.2); // 开始音
     }
 
     function createAI(i) {
         const ai = document.createElement('img');
         ai.src = 'image_78215a.png';
         ai.className = 'philosopher ai';
-        // AI 从左侧或顶部滑入
-        ai.style.left = '-250px'; 
-        ai.style.top = (Math.random() * 50) + '%';
+        const sides = [{l:-250, t:Math.random()*80}, {l:Math.random()*80, t:-250}, {l:window.innerWidth+50, t:Math.random()*80}];
+        const startPos = sides[Math.floor(Math.random() * sides.length)];
+        ai.style.left = startPos.l + 'px'; ai.style.top = startPos.t + 'px';
         stage.appendChild(ai);
 
-        // 难度调节：AI 速度随关卡提升
-        const duration = Math.max(0.5, 3.8 - (currentLevel * 0.4));
+        const startDelay = 400 + Math.random() * 800; 
+        const dashDuration = Math.max(0.4, 2.0 - (currentLevel * 0.2));
         
         setTimeout(() => {
             if (!isGaming) return;
-            ai.style.transition = `all ${duration}s cubic-bezier(0.2, 0.5, 0.8, 1)`;
-            ai.style.left = '40%'; // 目标点微调以匹配大尺寸
-            ai.style.top = '35%';
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.innerText = quotes[Math.floor(Math.random() * quotes.length)];
+            bubble.style.left = ai.offsetLeft + 'px'; bubble.style.top = ai.offsetTop + 'px';
+            stage.appendChild(bubble);
+            playTone(200, 'square', 0.1); // AI说话音
+
+            ai.style.transition = `all ${dashDuration}s cubic-bezier(0.1, 0.5, 0.5, 1)`;
+            ai.style.left = (window.innerWidth / 2 - 110) + 'px';
+            ai.style.top = (window.innerHeight / 2 - 120) + 'px';
             
-            const aiInterval = setInterval(() => {
-                if (!isGaming) clearInterval(aiInterval);
-                if (isHit(ai)) { clearInterval(aiInterval); endRound(false); }
-            }, 50);
-        }, 800);
+            setTimeout(() => { if (isGaming) endRound(false); }, dashDuration * 1000);
+        }, startDelay);
     }
 
     function addDragLogic(el) {
@@ -144,61 +160,49 @@
             const pos = e.touches ? e.touches[0] : e;
             el.style.left = (initX + (pos.clientX - startX)) + 'px';
             el.style.top = (initY + (pos.clientY - startY)) + 'px';
-            el.style.right = 'auto';
-            el.style.bottom = 'auto';
-
+            el.style.right = 'auto'; el.style.bottom = 'auto';
             if (isHit(el)) { isDragging = false; endRound(true); }
         };
-
         const start = (e) => {
             if (!isGaming) return;
-            e.preventDefault();
-            isDragging = true;
+            e.preventDefault(); isDragging = true;
             const pos = e.touches ? e.touches[0] : e;
-            startX = pos.clientX;
-            startY = pos.clientY;
-            initX = el.offsetLeft;
-            initY = el.offsetTop;
+            startX = pos.clientX; startY = pos.clientY;
+            initX = el.offsetLeft; initY = el.offsetTop;
         };
-
-        const stop = () => isDragging = false;
-
         el.addEventListener('mousedown', start);
         el.addEventListener('touchstart', start, {passive: false});
         window.addEventListener('mousemove', move);
         window.addEventListener('touchmove', move, {passive: false});
-        window.addEventListener('mouseup', stop);
-        window.addEventListener('touchend', stop);
+        window.addEventListener('mouseup', () => isDragging = false);
+        window.addEventListener('touchend', () => isDragging = false);
     }
 
     function isHit(el) {
-        const r1 = el.getBoundingClientRect();
-        const r2 = hitbox.getBoundingClientRect();
-        // 因为哲学家变大了，我们要检测哲学家的中心点是否靠近椅子中心
+        const r1 = el.getBoundingClientRect(); const r2 = hitbox.getBoundingClientRect();
         const dx = (r1.left + r1.width/2) - (r2.left + r2.width/2);
-        const dy = (r1.top + r1.height/2) - (r2.top + r2.height/2);
-        // 判定距离也略微收紧，要求更准确
-        return Math.sqrt(dx*dx + dy*dy) < 50; 
+        const dy = (r1.top + r1.height * 0.75) - (r2.top + r2.height/2);
+        return Math.sqrt(dx*dx + dy*dy) < 40;
     }
 
     function endRound(win) {
         if (!isGaming) return;
         isGaming = false;
-        
-        document.querySelectorAll('.philosopher').forEach(p => p.style.opacity = '0');
+        document.querySelectorAll('.philosopher, .bubble').forEach(p => p.style.opacity = '0');
 
         if (win) {
+            stage.classList.add('shake');
             stage.style.backgroundImage = "url('image_782124.jpg')";
+            playTone(880, 'sine', 0.5); // 胜利高音
             currentLevel++;
-            statusText.innerText = "你比虚无更沉重！";
-            mainBtn.innerText = "下一场轮回";
+            statusText.innerText = "存在之光照耀着你！";
         } else {
-            statusText.innerText = "椅子太小，你没能挤进去。";
-            mainBtn.innerText = "再次确证";
+            playTone(100, 'sawtooth', 0.5); // 失败低音
+            statusText.innerText = "你被挤出了历史的舞台。";
         }
-        
-        levelText.innerText = `关卡 ${currentLevel}`;
+        lvNum.innerText = currentLevel;
         mainBtn.style.display = 'inline-block';
+        mainBtn.innerText = win ? "继续下一关" : "再次挑战";
     }
 </script>
 </body>
