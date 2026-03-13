@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>存在主义：椅子争夺战修正版</title>
+    <title>存在主义：轨迹引导版</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: "serif"; touch-action: none; }
         #game-stage { 
@@ -12,15 +12,20 @@
             background-size: cover; background-position: center;
         }
 
+        /* 引导线画布 */
+        #guide-canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 5;
+        }
+
         .shake { animation: shakeAnim 0.3s; }
         @keyframes shakeAnim {
             0% { transform: translate(0,0); }
-            25% { transform: translate(5px, 5px); }
-            50% { transform: translate(-5px, -5px); }
+            25% { transform: translate(6px, 6px); }
+            50% { transform: translate(-6px, -6px); }
             100% { transform: translate(0,0); }
         }
         
-        /* 椅子判定中心（不可见） */
         #chair-hitbox { position: absolute; width: 20px; height: 20px; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1; pointer-events: none; }
 
         .philosopher {
@@ -29,16 +34,8 @@
             transition: opacity 0.3s;
         }
 
-        .player { filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.9)); cursor: grab; right: 5%; bottom: 5%; z-index: 20; }
+        .player { filter: drop-shadow(0 0 25px rgba(255, 215, 0, 0.9)); cursor: grab; z-index: 20; }
         .ai { filter: none; pointer-events: none; }
-
-        .bubble {
-            position: absolute; background: white; border: 2px solid #000;
-            padding: 5px 12px; border-radius: 15px; font-size: 14px;
-            font-weight: bold; z-index: 50; animation: fadeUp 1.2s forwards;
-        }
-
-        @keyframes fadeUp { 0% { opacity: 1; } 100% { transform: translateY(-60px); opacity: 0; } }
 
         #ui { position: absolute; top: 0; width: 100%; text-align: center; pointer-events: none; z-index: 100; }
         .panel {
@@ -52,11 +49,12 @@
 <body>
 
 <div id="game-stage">
+    <canvas id="guide-canvas"></canvas>
     <div id="chair-hitbox"></div>
     <div id="ui">
         <div class="panel">
             <div id="status">关卡 <span id="lv-num">1</span></div>
-            <div id="msg">点击下方按钮开始，音效将激活。</div>
+            <div id="msg">顺着因果线，回到你的位置。</div>
             <button id="main-btn" class="btn" onclick="initAndStart()">确证存在</button>
         </div>
     </div>
@@ -66,16 +64,26 @@
     let currentLevel = 1;
     let isGaming = false;
     let isDragging = false;
-    let playerObj, startX, startY, initX, initY;
-    let audioCtx;
+    let playerObj, audioCtx;
+    let startX, startY, initX, initY;
 
     const stage = document.getElementById('game-stage');
+    const canvas = document.getElementById('guide-canvas');
+    const ctx = canvas.getContext('2d');
     const hitbox = document.getElementById('chair-hitbox');
     const msgText = document.getElementById('msg');
     const mainBtn = document.getElementById('main-btn');
     const lvNum = document.getElementById('lv-num');
 
-    // --- 音效系统 ---
+    // 适配画布大小
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // 音效
     function playTone(freq, type, duration) {
         if (!audioCtx) return;
         const osc = audioCtx.createOscillator();
@@ -91,10 +99,7 @@
     }
 
     function initAndStart() {
-        // 激活音频上下文
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
         startLevel();
     }
@@ -103,53 +108,79 @@
         isGaming = true;
         isDragging = false;
         mainBtn.style.display = 'none';
-        msgText.innerText = "快速拖动到中心！";
+        msgText.innerText = "追随指引，占据中心。";
         stage.style.backgroundImage = "url('image_78211d.jpg')";
         stage.classList.remove('shake');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // 清场
-        document.querySelectorAll('.philosopher, .bubble').forEach(p => p.remove());
+        document.querySelectorAll('.philosopher').forEach(p => p.remove());
 
-        // 生成玩家（强制站立图）
+        // 生成玩家：右下角
         playerObj = document.createElement('img');
         playerObj.src = 'image_78215a.png';
         playerObj.className = 'philosopher player';
-        // 设置初始位置在右下角
         playerObj.style.right = '5%';
         playerObj.style.bottom = '5%';
         stage.appendChild(playerObj);
         
         addDragLogic(playerObj);
-
-        // 生成实心AI
         for (let i = 0; i < currentLevel; i++) createAI(i);
-        playTone(523.25, 'sine', 0.2); // C5 启动音
+        playTone(523, 'sine', 0.2);
     }
 
     function createAI(i) {
         const ai = document.createElement('img');
-        ai.src = 'image_78215a.png'; // AI也必须站着冲
+        ai.src = 'image_78215a.png';
         ai.className = 'philosopher ai';
-        
-        const side = Math.random() > 0.5 ? -250 : window.innerWidth + 50;
-        ai.style.left = side + 'px';
-        ai.style.top = Math.random() * 50 + '%';
+        ai.style.left = (Math.random() > 0.5 ? -250 : window.innerWidth + 50) + 'px';
+        ai.style.top = Math.random() * 60 + '%';
         stage.appendChild(ai);
 
-        const startDelay = 600 + Math.random() * 800; 
-        const dashTime = Math.max(0.4, 2.2 - (currentLevel * 0.25));
+        const delay = 800 + Math.random() * 1000; 
+        const speed = Math.max(0.4, 2.5 - (currentLevel * 0.2));
         
         setTimeout(() => {
             if (!isGaming) return;
-            ai.style.transition = `all ${dashTime}s cubic-bezier(0.4, 0, 0.2, 1)`;
+            ai.style.transition = `all ${speed}s cubic-bezier(0.4, 0, 0.2, 1)`;
             ai.style.left = (window.innerWidth/2 - 110) + 'px';
             ai.style.top = (window.innerHeight/2 - 110) + 'px';
-            
-            // 判定AI获胜
-            setTimeout(() => {
-                if (isGaming) endRound(false);
-            }, dashTime * 1000);
-        }, startDelay);
+            setTimeout(() => { if (isGaming) endRound(false); }, speed * 1000);
+        }, delay);
+    }
+
+    function drawGuideLine() {
+        if (!isDragging || !isGaming) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        const r1 = playerObj.getBoundingClientRect();
+        const r2 = hitbox.getBoundingClientRect();
+        
+        const pX = r1.left + r1.width / 2;
+        const pY = r1.top + r1.height * 0.75; // 屁股重心
+        const cX = r2.left + r2.width / 2;
+        const cY = r2.top + r2.height / 2;
+
+        // 绘制虚线
+        ctx.beginPath();
+        ctx.setLineDash([10, 10]);
+        ctx.moveTo(pX, pY);
+        ctx.lineTo(cX, cY);
+        ctx.strokeStyle = 'rgba(255, 215, 0, 0.6)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // 绘制两端的光点
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.8)';
+        ctx.beginPath();
+        ctx.arc(pX, pY, 5, 0, Math.PI * 2);
+        ctx.arc(cX, cY, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        requestAnimationFrame(drawGuideLine);
     }
 
     function addDragLogic(el) {
@@ -158,16 +189,11 @@
             e.preventDefault();
             isDragging = true;
             const pos = e.touches ? e.touches[0] : e;
-            startX = pos.clientX;
-            startY = pos.clientY;
-            // 记录当前位置
-            initX = el.offsetLeft;
-            initY = el.offsetTop;
-            // 切换为绝对定位以防漂移
-            el.style.right = 'auto';
-            el.style.bottom = 'auto';
-            el.style.left = initX + 'px';
-            el.style.top = initY + 'px';
+            startX = pos.clientX; startY = pos.clientY;
+            initX = el.offsetLeft; initY = el.offsetTop;
+            el.style.right = 'auto'; el.style.bottom = 'auto';
+            el.style.left = initX + 'px'; el.style.top = initY + 'px';
+            drawGuideLine();
         };
 
         const onMove = (e) => {
@@ -176,10 +202,7 @@
             el.style.left = (initX + (pos.clientX - startX)) + 'px';
             el.style.top = (initY + (pos.clientY - startY)) + 'px';
 
-            if (checkCollision(el)) {
-                isDragging = false;
-                endRound(true);
-            }
+            if (checkCollision(el)) { isDragging = false; endRound(true); }
         };
 
         el.addEventListener('mousedown', onStart);
@@ -193,37 +216,32 @@
     function checkCollision(el) {
         const r1 = el.getBoundingClientRect();
         const r2 = hitbox.getBoundingClientRect();
-        // 精准检测：哲学家的中心点 是否靠近 盒子的中心点
-        const pCenterX = r1.left + r1.width / 2;
-        const pCenterY = r1.top + r1.height * 0.7; // 稍微偏向臀部位置
-        const cCenterX = r2.left + r2.width / 2;
-        const cCenterY = r2.top + r2.height / 2;
-
-        const dist = Math.sqrt(Math.pow(pCenterX - cCenterX, 2) + Math.pow(pCenterY - cCenterY, 2));
-        return dist < 50; // 50像素内判定成功
+        const dist = Math.sqrt(
+            Math.pow((r1.left + r1.width/2) - (r2.left + r2.width/2), 2) +
+            Math.pow((r1.top + r1.height * 0.75) - (r2.top + r2.height/2), 2)
+        );
+        return dist < 45;
     }
 
     function endRound(win) {
         if (!isGaming) return;
         isGaming = false;
-        
-        // 瞬间隐藏所有站立的老头
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         document.querySelectorAll('.philosopher').forEach(p => p.style.opacity = '0');
 
         if (win) {
             stage.classList.add('shake');
-            stage.style.backgroundImage = "url('image_782124.jpg')"; // 切换到坐下全景图
-            playTone(880, 'sine', 0.5); // 胜利高音 A5
+            stage.style.backgroundImage = "url('image_782124.jpg')";
+            playTone(880, 'sine', 0.5);
             currentLevel++;
-            msgText.innerText = "确证成功！你坐到了位置。";
+            msgText.innerText = "精准入座！存在得以延续。";
         } else {
-            playTone(150, 'sawtooth', 0.5); // 失败低音
-            msgText.innerText = "慢了一步！你沦为了旁观者。";
+            playTone(150, 'sawtooth', 0.5);
+            msgText.innerText = "轨迹断裂。虚无占据了中心。";
         }
-        
         lvNum.innerText = currentLevel;
         mainBtn.style.display = 'inline-block';
-        mainBtn.innerText = win ? "下一关" : "重试本关";
+        mainBtn.innerText = win ? "下一关" : "重试";
     }
 </script>
 </body>
