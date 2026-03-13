@@ -3,31 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>存在主义：红外线潜入</title>
+    <title>存在主义：灵活潜入版</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: "serif"; touch-action: none; }
-        #game-stage { 
-            position: relative; width: 100vw; height: 100vh; 
-            background-image: url('image_78211d.jpg'); 
-            background-size: cover; background-position: center;
-        }
-
-        /* 引导线与激光画布 */
+        #game-stage { position: relative; width: 100vw; height: 100vh; background-image: url('image_78211d.jpg'); background-size: cover; background-position: center; }
         #guide-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
 
         .philosopher {
-            position: absolute; width: 220px; z-index: 10;
+            position: absolute; 
+            width: 120px; /* 缩小尺寸，提升灵活度 */
+            z-index: 10;
             user-select: none; -webkit-user-drag: none;
-            /* 关键：中心点对齐 */
             transform: translate(-50%, -50%); 
         }
 
-        /* 玩家：唯一带有一层淡淡的“灵魂光芒” */
         .player { filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.8)); cursor: grab; z-index: 20; }
-        .player:active { cursor: grabbing; }
-
-        /* AI：完全实心，和玩家一样大 */
-        .ai { filter: none; pointer-events: none; }
+        .ai { filter: brightness(0.7); pointer-events: none; }
 
         #ui { position: absolute; top: 0; width: 100%; text-align: center; pointer-events: none; z-index: 100; }
         .panel {
@@ -35,7 +26,7 @@
             border: 3px solid #000; padding: 10px 40px; margin-top: 20px;
             pointer-events: auto; box-shadow: 8px 8px 0px #000;
         }
-        .btn { background: #000; color: #fff; padding: 12px 35px; border: none; cursor: pointer; font-size: 20px; font-weight: bold; margin-top: 10px; }
+        .btn { background: #000; color: #fff; padding: 12px 35px; border: none; cursor: pointer; font-size: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -44,9 +35,9 @@
     <canvas id="guide-canvas"></canvas>
     <div id="ui">
         <div class="panel">
-            <div id="level-info">关卡 <span id="lv-num">1</span></div>
-            <div id="status">避开红外线，占据中心。</div>
-            <button id="main-btn" class="btn" onclick="initAndStart()">开启轮回</button>
+            <div id="status">关卡 <span id="lv-num">1</span></div>
+            <div id="msg">激光在抖动，那是虚无的不安定。</div>
+            <button id="main-btn" class="btn" onclick="initAndStart()">开始挑战</button>
         </div>
     </div>
 </div>
@@ -55,12 +46,12 @@
     let currentLevel = 1, isGaming = false, isDragging = false, audioCtx;
     let playerPos = { x: 0, y: 0 }, chairPos = { x: 0, y: 0 };
     let startMouse = { x: 0, y: 0 }, startObj = { x: 0, y: 0 };
-    let lasers = []; // 红外线数据
+    let lasers = [];
 
     const stage = document.getElementById('game-stage');
     const canvas = document.getElementById('guide-canvas');
     const ctx = canvas.getContext('2d');
-    const msgText = document.getElementById('status');
+    const msgText = document.getElementById('msg');
     const mainBtn = document.getElementById('main-btn');
     const lvNum = document.getElementById('lv-num');
 
@@ -72,13 +63,12 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // 音效
     function playTone(freq, type, duration) {
         if (!audioCtx) return;
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
         osc.connect(gain); gain.connect(audioCtx.destination);
         osc.start(); osc.stop(audioCtx.currentTime + duration);
     }
@@ -89,67 +79,38 @@
         startLevel();
     }
 
-    // 初始化关卡与红外线数据
     function startLevel() {
         isGaming = true; isDragging = false;
         mainBtn.style.display = 'none';
         stage.style.backgroundImage = "url('image_78211d.jpg')";
-        msgText.innerText = "避开红外线，对准中心点！";
+        msgText.innerText = "避开红线，拖动哲学家！";
         
         document.querySelectorAll('.philosopher').forEach(p => p.remove());
 
-        // 玩家固定在右下角
+        // 初始位置：右下角
         playerPos = { x: window.innerWidth * 0.85, y: window.innerHeight * 0.85 };
         
         playerObj = document.createElement('img');
         playerObj.src = 'image_78215a.png';
         playerObj.className = 'philosopher player';
-        updatePos(playerObj, playerPos.x, playerPos.y);
+        playerObj.style.left = playerPos.x + 'px';
+        playerObj.style.top = playerPos.y + 'px';
         stage.appendChild(playerObj);
         
         bindDrag(playerObj);
 
-        // 生成 AI 
-        for (let i = 0; i < currentLevel; i++) createAI();
-
-        // --- 生成红外线数据 ---
+        // 生成红外线
         lasers = [];
-        const laserCount = currentLevel * 2 + 1; // 激光数量随等级增加
+        const laserCount = Math.min(8, 2 + currentLevel); 
         for (let i = 0; i < laserCount; i++) {
             lasers.push({
-                angle: Math.random() * Math.PI * 2,
-                speed: 0.01 + Math.random() * 0.02 * currentLevel, // 越往后越快
-                color: 'rgba(255, 0, 0, 0.8)'
+                angle: (Math.PI * 2 / laserCount) * i,
+                speed: 0.005 + Math.random() * 0.01 * currentLevel,
+                wave: Math.random() * 20, // 抖动幅度
+                offset: 0
             });
         }
-
-        playTone(523.25, 'sine', 0.2);
-        render(); // 启动 Canvas 渲染逻辑
-    }
-
-    function updatePos(el, x, y) { el.style.left = x + 'px'; el.style.top = y + 'px'; }
-
-    function createAI() {
-        const ai = document.createElement('img');
-        ai.src = 'image_78215a.png';
-        ai.className = 'philosopher ai';
-        // AI 从左侧或顶部滑入
-        let aiX = Math.random() > 0.5 ? -250 : window.innerWidth + 200;
-        let aiY = Math.random() * window.innerHeight;
-        updatePos(ai, aiX, aiY);
-        stage.appendChild(ai);
-
-        const delay = 800 + Math.random() * 1000;
-        const duration = Math.max(0.5, 3 - currentLevel * 0.3); // 关卡提升，AI 速度更快
-
-        setTimeout(() => {
-            if (!isGaming) return;
-            ai.style.transition = `all ${duration}s cubic-bezier(0.4, 0, 0.2, 1)`;
-            // AI 的目标也是精确中心
-            updatePos(ai, chairPos.x, chairPos.y);
-            // 简单判定AI是否抢先到达
-            setTimeout(() => { if (isGaming) endRound(false, "太慢了！AI 占据了中心。"); }, duration * 1000);
-        }, delay);
+        render();
     }
 
     function bindDrag(el) {
@@ -166,12 +127,11 @@
             const pos = e.touches ? e.touches[0] : e;
             playerPos.x = startObj.x + (pos.clientX - startMouse.x);
             playerPos.y = startObj.y + (pos.clientY - startMouse.y);
-            updatePos(el, playerPos.x, playerPos.y);
+            el.style.left = playerPos.x + 'px';
+            el.style.top = playerPos.y + 'px';
 
-            // 物理吸附判定 (坐落点在几何中心，即 translate -50% -50% 的核心点)
             const dist = Math.sqrt(Math.pow(playerPos.x - chairPos.x, 2) + Math.pow(playerPos.y - chairPos.y, 2));
-
-            if (dist < 40) { // 物理级吸附
+            if (dist < 60) { // 扩大吸附范围，降低难度
                 isDragging = false;
                 endRound(true);
             }
@@ -184,73 +144,62 @@
         window.addEventListener('touchend', () => isDragging = false);
     }
 
-    // --- 核心 Canvas 渲染与碰撞检测逻辑 ---
     function render() {
         if (!isGaming) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // 1. 绘制金色引导线 (因果链)
+        // 绘制金色引导线
         if (isDragging) {
             ctx.beginPath();
-            ctx.setLineDash([8, 8]);
+            ctx.setLineDash([5, 5]);
             ctx.moveTo(playerPos.x, playerPos.y);
             ctx.lineTo(chairPos.x, chairPos.y);
-            ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
             ctx.stroke();
         }
 
-        // 2. 绘制与检测红外线激光
-        ctx.setLineDash([]);
         let hitDetected = false;
+        const time = Date.now() * 0.002;
 
         lasers.forEach(laser => {
-            laser.angle += laser.speed; // 激光旋转
-
+            laser.angle += laser.speed;
+            const shake = Math.sin(time + laser.angle) * laser.wave;
+            
             ctx.beginPath();
+            ctx.setLineDash([]);
             ctx.moveTo(chairPos.x, chairPos.y);
-            // 激光束长度覆盖整个屏幕
-            const laserLen = Math.max(window.innerWidth, window.innerHeight);
-            const lx = chairPos.x + Math.cos(laser.angle) * laserLen;
-            const ly = chairPos.y + Math.sin(laser.angle) * laserLen;
+            
+            const lx = chairPos.x + Math.cos(laser.angle + shake/500) * 1500;
+            const ly = chairPos.y + Math.sin(laser.angle + shake/500) * 1500;
             ctx.lineTo(lx, ly);
             
-            ctx.strokeStyle = laser.color;
-            ctx.lineWidth = 3;
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)';
+            ctx.lineWidth = 2;
             ctx.stroke();
 
-            // 碰撞检测逻辑：计算哲学家的几何中心点（playerPos）到激光直线的垂直距离
-            // 直线方程可以通过两点 (cx, cy) 和 (lx, ly) 确定
+            // 碰撞检测：点到直线的距离
             const dx = lx - chairPos.x;
             const dy = ly - chairPos.y;
-            // 如果激光长度几乎为0，跳过检测 (不应该发生)
-            if (dx*dx + dy*dy < 100) return; 
+            const dist = Math.abs(dy * playerPos.x - dx * playerPos.y + lx * chairPos.y - ly * chairPos.x) / Math.sqrt(dy * dy + dx * dx);
 
-            // 点到直线距离公式的分子部分： |(y2-y1)x0 - (x2-x1)y0 + x2y1 - y2x1|
-            const numerator = Math.abs(dy * playerPos.x - dx * playerPos.y + lx * chairPos.y - ly * chairPos.x);
-            const denominator = Math.sqrt(dy * dy + dx * dx);
-            const dist = numerator / denominator;
+            // 玩家在起始点或终点时，激光免疫（安全区保护）
+            const distToCenter = Math.sqrt(Math.pow(playerPos.x - chairPos.x, 2) + Math.pow(playerPos.y - chairPos.y, 2));
+            const distToStart = Math.sqrt(Math.pow(playerPos.x - window.innerWidth * 0.85, 2) + Math.pow(playerPos.y - window.innerHeight * 0.85, 2));
 
-            // 如果距离激光束小于 15 像素（考虑老头尺寸大），判定为触碰
-            if (isGaming && dist < 15) {
-                laser.color = 'rgba(255, 0, 0, 1)'; // 触碰时变亮
+            if (dist < 10 && distToCenter > 100 && distToStart > 100) {
                 hitDetected = true;
-            } else {
-                laser.color = 'rgba(255, 0, 0, 0.8)';
             }
         });
 
-        // 如果触碰激光，播放失败音效并结束关卡
-        if (isGaming && hitDetected) {
-            playTone(100, 'sawtooth', 0.5); // 失败低音
-            msgText.innerText = "触碰激光！你沦为了旁观者。";
-            endRound(false, "触碰激光！你的存在感消失了。");
+        if (hitDetected && isGaming) {
+            playTone(100, 'sawtooth', 0.3);
+            endRound(false);
         }
 
         requestAnimationFrame(render);
     }
 
-    function endRound(win, text) {
+    function endRound(win) {
         if (!isGaming) return;
         isGaming = false;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -258,17 +207,15 @@
 
         if (win) {
             stage.style.backgroundImage = "url('image_782124.jpg')";
-            playTone(880, 'sine', 0.4);
+            playTone(600, 'sine', 0.3);
             currentLevel++;
-            msgText.innerText = "精准入座！你比激光更坚韧。";
+            msgText.innerText = "成功突围！";
         } else {
-            stage.style.backgroundImage = "url('image_78211d.jpg')";
-            msgText.innerText = text;
+            msgText.innerText = "触碰激光！重来一次。";
         }
-        
         lvNum.innerText = currentLevel;
         mainBtn.style.display = 'inline-block';
-        mainBtn.innerText = win ? "挑战更高的束缚" : "修正轨迹";
+        mainBtn.innerText = win ? "挑战下一关" : "再次尝试";
     }
 </script>
 </body>
