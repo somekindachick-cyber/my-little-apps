@@ -3,38 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>存在主义：手动抢座</title>
+    <title>存在主义：手动抢座修正版</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #fff; font-family: "serif"; touch-action: none; }
-        #game-stage { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+        #game-stage { position: relative; width: 100vw; height: 100vh; background: #f9f9f9; }
         
-        /* 椅子位置 */
         #chair-target {
-            position: absolute; width: 180px; left: 50%; top: 55%;
+            position: absolute; width: 200px; left: 50%; top: 50%;
             transform: translate(-50%, -50%); z-index: 1;
+            pointer-events: none; /* 防止椅子挡住拖拽检测 */
         }
 
-        /* 哲学家 */
         .philosopher {
-            position: absolute; width: 120px; z-index: 10;
-            cursor: grab; user-select: none; -webkit-user-drag: none;
+            position: absolute; width: 130px; z-index: 10;
+            cursor: move; cursor: grab;
+            user-select: none;
+            -webkit-user-drag: none; /* 关键：禁止系统默认拖拽 */
         }
         .philosopher:active { cursor: grabbing; }
-        .ai { filter: grayscale(1) opacity(0.7); pointer-events: none; }
-        .player { filter: drop-shadow(0 0 8px rgba(0,255,0,0.5)); }
 
-        /* UI */
+        .player { filter: drop-shadow(0 0 12px rgba(46, 204, 113, 0.6)); }
+        .ai { filter: grayscale(1) opacity(0.6); pointer-events: none; }
+
         #ui-overlay {
             position: absolute; top: 0; width: 100%; text-align: center;
             pointer-events: none; z-index: 100;
         }
         .panel {
-            display: inline-block; background: rgba(255,255,255,0.9);
-            border: 2px solid #000; padding: 15px; margin-top: 20px;
-            pointer-events: auto; border-radius: 10px;
+            display: inline-block; background: white; border: 3px solid #000;
+            padding: 15px 30px; margin-top: 20px; pointer-events: auto;
+            box-shadow: 8px 8px 0px #000;
         }
-        .btn { background: #000; color: #fff; padding: 10px 20px; border: none; cursor: pointer; border-radius: 5px; }
-        #guide { font-size: 14px; color: #666; margin-top: 5px; }
+        .btn { background: #000; color: #fff; padding: 10px 25px; border: none; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -44,9 +44,9 @@
 
     <div id="ui-overlay">
         <div class="panel">
-            <div id="status">第 <span id="lv-num">1</span> 关: 动手确证存在</div>
-            <div id="guide">按住你的哲学家，把他拖到椅子上！</div>
-            <button id="start-btn" class="btn" onclick="initRound()">开始本轮</button>
+            <div id="status">找到你的哲学家，把他按在椅子上！</div>
+            <div id="info" style="font-size: 12px; margin: 5px 0;">当前关卡: <span id="lv-num">1</span></div>
+            <button id="start-btn" class="btn" onclick="initRound()">开始确证</button>
         </div>
     </div>
 </div>
@@ -54,49 +54,37 @@
 <script>
     let level = 1;
     let isGaming = false;
-    let playerObj = null;
+    let activePlayer = null;
+    let isDragging = false;
+    let startX, startY, initialLeft, initialTop;
+
     const stage = document.getElementById('game-stage');
     const chair = document.getElementById('chair-target');
     const startBtn = document.getElementById('start-btn');
-    
-    // 图片资源
-    const imgStand = 'image_78215a.png'; 
-    const imgSat = 'image_782124.jpg';
-    const imgEmptyChair = 'image_78211d.jpg';
-
-    // 拖拽逻辑变量
-    let isDragging = false;
-    let offset = { x: 0, y: 0 };
 
     function initRound() {
         startBtn.style.display = 'none';
         isGaming = true;
-        
-        // 清理旧元素
         document.querySelectorAll('.philosopher').forEach(p => p.remove());
-        chair.src = imgEmptyChair;
+        chair.src = 'image_78211d.jpg';
 
-        // 创建玩家
-        playerObj = createPhilosopher(true);
-        // 创建AI (数量随等级增加)
-        for(let i=0; i < level; i++) {
-            createAI();
-        }
+        activePlayer = createPhilosopher(true);
+        for(let i=0; i < level; i++) { createAI(); }
     }
 
     function createPhilosopher(isPlayer) {
         const img = document.createElement('img');
-        img.src = imgStand;
+        img.src = 'image_78215a.png';
         img.className = isPlayer ? 'philosopher player' : 'philosopher ai';
         
-        // 初始位置：玩家在左下角，AI在右侧
         if(isPlayer) {
-            img.style.left = '50px';
-            img.style.bottom = '50px';
-            addDragListeners(img);
+            // 随机出现在左侧或下侧
+            img.style.left = '10%';
+            img.style.top = '70%';
+            bindDragEvents(img);
         } else {
-            img.style.right = '-150px';
-            img.style.top = Math.random() * 70 + '%';
+            img.style.left = '110%'; // 屏幕外
+            img.style.top = Math.random() * 80 + '%';
         }
         
         stage.appendChild(img);
@@ -105,89 +93,83 @@
 
     function createAI() {
         const ai = createPhilosopher(false);
-        // AI 移动逻辑
-        const speed = 3 + Math.random() * 4; // 初始速度较慢
-        const duration = Math.max(1, speed - (level * 0.3)); // 随等级变快
+        const duration = Math.max(0.8, 4 - (level * 0.5)); // 关卡越高越快
         
         setTimeout(() => {
             if(!isGaming) return;
-            ai.style.transition = `all ${duration}s linear`;
-            ai.style.right = '45%';
-            ai.style.top = '45%';
+            ai.style.transition = `all ${duration}s cubic-bezier(0.4, 0, 0.2, 1)`;
+            ai.style.left = '45%';
+            ai.style.top = '40%';
             
-            // 检查AI是否到达
-            const checkInterval = setInterval(() => {
-                if(!isGaming) { clearInterval(checkInterval); return; }
-                if(isOverlap(ai, chair)) {
-                    clearInterval(checkInterval);
-                    endGame(false);
-                }
+            const checkTimer = setInterval(() => {
+                if(!isGaming) clearInterval(checkTimer);
+                if(checkHit(ai)) { clearInterval(checkTimer); endGame(false); }
             }, 50);
-        }, 500);
+        }, 1000);
     }
 
-    function addDragListeners(el) {
-        const start = (e) => {
+    function bindDragEvents(el) {
+        const onStart = (e) => {
             if(!isGaming) return;
+            e.preventDefault(); // 阻止浏览器默认拖图行为
             isDragging = true;
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            offset.x = clientX - el.offsetLeft;
-            offset.y = clientY - el.offsetTop;
+            const pos = e.touches ? e.touches[0] : e;
+            startX = pos.clientX;
+            startY = pos.clientY;
+            initialLeft = el.offsetLeft;
+            initialTop = el.offsetTop;
         };
 
-        const move = (e) => {
-            if (!isDragging || !isGaming) return;
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            el.style.left = (clientX - offset.x) + 'px';
-            el.style.top = (clientY - offset.y) + 'px';
+        const onMove = (e) => {
+            if(!isDragging || !isGaming) return;
+            const pos = e.touches ? e.touches[0] : e;
+            const dx = pos.clientX - startX;
+            const dy = pos.clientY - startY;
+            
+            el.style.left = (initialLeft + dx) + 'px';
+            el.style.top = (initialTop + dy) + 'px';
 
-            // 实时检测碰撞
-            if(isOverlap(el, chair)) {
-                isDragging = false;
-                endGame(true);
-            }
+            if(checkHit(el)) { isDragging = false; endGame(true); }
         };
 
-        const stop = () => isDragging = false;
+        const onEnd = () => { isDragging = false; };
 
-        el.addEventListener('mousedown', start);
-        window.addEventListener('mousemove', move);
-        window.addEventListener('mouseup', stop);
-        el.addEventListener('touchstart', start);
-        window.addEventListener('touchmove', move);
-        window.addEventListener('touchend', stop);
+        el.addEventListener('mousedown', onStart);
+        el.addEventListener('touchstart', onStart, {passive: false});
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('touchmove', onMove, {passive: false});
+        window.addEventListener('mouseup', onEnd);
+        window.addEventListener('touchend', onEnd);
     }
 
-    function isOverlap(obj1, obj2) {
-        const r1 = obj1.getBoundingClientRect();
-        const r2 = obj2.getBoundingClientRect();
-        // 缩小判定范围，让玩家必须把人放到椅子中心附近
-        return !(r1.right < r2.left + 50 || 
-                 r1.left > r2.right - 50 || 
-                 r1.bottom < r2.top + 50 || 
-                 r1.top > r2.bottom - 50);
+    function checkHit(el) {
+        const r1 = el.getBoundingClientRect();
+        const r2 = chair.getBoundingClientRect();
+        // 判定中心点重合度
+        const dist = Math.sqrt(
+            Math.pow((r1.left + r1.width/2) - (r2.left + r2.width/2), 2) +
+            Math.pow((r1.top + r1.height/2) - (r2.top + r2.height/2), 2)
+        );
+        return dist < 60; // 距离椅子中心60像素以内算坐下
     }
 
     function endGame(win) {
         isGaming = false;
-        chair.src = imgSat;
+        chair.src = 'image_782124.jpg';
         document.querySelectorAll('.philosopher').forEach(p => p.style.opacity = '0');
 
         if(win) {
             level++;
-            document.getElementById('status').innerText = "胜利！你成功入座。";
-            startBtn.innerText = "进入下一关";
+            document.getElementById('status').innerText = "胜！你坐稳了。";
+            startBtn.innerText = "挑战更激烈的虚无";
         } else {
             level = Math.max(1, level - 1);
-            document.getElementById('status').innerText = "太慢了！位置被抢了。";
-            startBtn.innerText = "重试本关";
+            document.getElementById('status').innerText = "哎呀，被抢先了！";
+            startBtn.innerText = "重新尝试";
         }
         document.getElementById('lv-num').innerText = level;
         startBtn.style.display = 'inline-block';
     }
 </script>
-
 </body>
 </html>
