@@ -3,47 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>存在主义：草地争夺战</title>
+    <title>存在主义：巨型哲学家</title>
     <style>
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
-            overflow: hidden; background: #222; font-family: "serif"; 
+            overflow: hidden; background: #000; font-family: "serif"; 
             touch-action: none; 
         }
         
         #game-stage { 
             position: relative; width: 100vw; height: 100vh; 
-            /* 使用带有椅子的草地图作为全屏背景 */
             background-image: url('image_78211d.jpg');
             background-size: cover;
             background-position: center;
-            transition: background-image 0.3s ease-in-out;
+            transition: background-image 0.4s ease-in-out;
         }
 
-        /* 隐藏原始的椅子img标签，因为背景已经带了椅子 */
-        /* 但为了碰撞检测方便，我们放一个透明的判定区在中心 */
+        /* 缩小椅子判定区：增加操作精度要求 */
         #chair-hitbox {
-            position: absolute; width: 100px; height: 100px;
+            position: absolute; width: 60px; height: 60px;
             left: 50%; top: 50%; transform: translate(-50%, -50%);
             z-index: 1; pointer-events: none;
+            /* border: 1px dashed rgba(255,255,255,0.3); 可视化调试用 */
         }
 
         .philosopher {
-            position: absolute; width: 130px; z-index: 10;
+            position: absolute; 
+            width: 200px; /* 显著放大哲学家尺寸 */
+            z-index: 10;
             user-select: none; -webkit-user-drag: none;
-            transition: transform 0.2s ease;
+            transition: transform 0.2s ease, opacity 0.3s;
         }
 
         /* 玩家：初始位置在右下角 */
         .player {
-            filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.8));
+            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.9));
             cursor: grab;
-            right: 5%; bottom: 10%; /* 确认为右下角 */
+            right: 5%; bottom: 5%;
         }
-        .player:active { cursor: grabbing; transform: scale(1.1); }
+        .player:active { cursor: grabbing; transform: scale(1.05); }
 
         /* AI：竞争者 */
-        .ai { filter: grayscale(1) contrast(1.2) opacity(0.7); pointer-events: none; }
+        .ai { filter: grayscale(1) brightness(0.7) opacity(0.8); pointer-events: none; }
 
         /* UI 面板 */
         #ui {
@@ -51,18 +52,16 @@
             pointer-events: none; z-index: 100;
         }
         .panel {
-            display: inline-block; background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(5px); border: 2px solid #000;
-            padding: 15px 40px; margin-top: 20px; pointer-events: auto;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2); border-radius: 8px;
+            display: inline-block; background: rgba(255, 255, 255, 0.9);
+            border: 3px solid #000; padding: 10px 40px; margin-top: 20px;
+            pointer-events: auto; box-shadow: 10px 10px 0px #000;
         }
         .btn { 
-            background: #2d3436; color: #fff; padding: 12px 30px; 
-            border: none; cursor: pointer; font-size: 18px; 
-            border-radius: 4px; transition: 0.3s;
+            background: #000; color: #fff; padding: 12px 35px; 
+            border: none; cursor: pointer; font-size: 20px; 
+            font-weight: bold; margin: 10px 0;
         }
-        .btn:hover { background: #000; }
-        #level-info { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
+        #level-info { font-size: 24px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -73,8 +72,8 @@
     <div id="ui">
         <div class="panel">
             <div id="level-info">关卡 1</div>
-            <div id="status">将右下角的哲学家拖向椅子！</div>
-            <button id="main-btn" class="btn" onclick="startLevel()">确证存在</button>
+            <div id="status">椅子很小，而你如此沉重。</div>
+            <button id="main-btn" class="btn" onclick="startLevel()">开始争夺</button>
         </div>
     </div>
 </div>
@@ -95,15 +94,12 @@
         isGaming = true;
         isDragging = false;
         mainBtn.style.display = 'none';
-        statusText.innerText = "抢占那个位子！";
-        
-        // 恢复初始背景
+        statusText.innerText = "用你的存在填满那个座位！";
         stage.style.backgroundImage = "url('image_78211d.jpg')";
         
-        // 清理旧角色
         document.querySelectorAll('.philosopher').forEach(p => p.remove());
 
-        // 生成玩家：固定在右下角
+        // 生成玩家：右下角
         playerObj = document.createElement('img');
         playerObj.src = 'image_78215a.png';
         playerObj.className = 'philosopher player';
@@ -111,7 +107,7 @@
         
         addDragLogic(playerObj);
 
-        // 生成AI：从屏幕左侧或上方滑入
+        // 生成AI
         for (let i = 0; i < currentLevel; i++) {
             createAI(i);
         }
@@ -121,17 +117,19 @@
         const ai = document.createElement('img');
         ai.src = 'image_78215a.png';
         ai.className = 'philosopher ai';
-        ai.style.left = '-150px'; 
-        ai.style.top = (Math.random() * 60) + '%';
+        // AI 从左侧或顶部滑入
+        ai.style.left = '-250px'; 
+        ai.style.top = (Math.random() * 50) + '%';
         stage.appendChild(ai);
 
-        const duration = Math.max(0.6, 3.5 - (currentLevel * 0.4));
+        // 难度调节：AI 速度随关卡提升
+        const duration = Math.max(0.5, 3.8 - (currentLevel * 0.4));
         
         setTimeout(() => {
             if (!isGaming) return;
-            ai.style.transition = `all ${duration}s cubic-bezier(0.1, 0.7, 1.0, 0.1)`;
-            ai.style.left = '45%';
-            ai.style.top = '45%';
+            ai.style.transition = `all ${duration}s cubic-bezier(0.2, 0.5, 0.8, 1)`;
+            ai.style.left = '40%'; // 目标点微调以匹配大尺寸
+            ai.style.top = '35%';
             
             const aiInterval = setInterval(() => {
                 if (!isGaming) clearInterval(aiInterval);
@@ -146,7 +144,7 @@
             const pos = e.touches ? e.touches[0] : e;
             el.style.left = (initX + (pos.clientX - startX)) + 'px';
             el.style.top = (initY + (pos.clientY - startY)) + 'px';
-            el.style.right = 'auto'; // 拖动时解除右偏移限制
+            el.style.right = 'auto';
             el.style.bottom = 'auto';
 
             if (isHit(el)) { isDragging = false; endRound(true); }
@@ -176,9 +174,11 @@
     function isHit(el) {
         const r1 = el.getBoundingClientRect();
         const r2 = hitbox.getBoundingClientRect();
+        // 因为哲学家变大了，我们要检测哲学家的中心点是否靠近椅子中心
         const dx = (r1.left + r1.width/2) - (r2.left + r2.width/2);
         const dy = (r1.top + r1.height/2) - (r2.top + r2.height/2);
-        return Math.sqrt(dx*dx + dy*dy) < 60;
+        // 判定距离也略微收紧，要求更准确
+        return Math.sqrt(dx*dx + dy*dy) < 50; 
     }
 
     function endRound(win) {
@@ -188,13 +188,13 @@
         document.querySelectorAll('.philosopher').forEach(p => p.style.opacity = '0');
 
         if (win) {
-            stage.style.backgroundImage = "url('image_782124.jpg')"; // 切换到坐下的全景图
+            stage.style.backgroundImage = "url('image_782124.jpg')";
             currentLevel++;
-            statusText.innerText = "你是现实的胜利者！";
-            mainBtn.innerText = "进入下一关";
+            statusText.innerText = "你比虚无更沉重！";
+            mainBtn.innerText = "下一场轮回";
         } else {
-            statusText.innerText = "被捷足先登了！你落入了虚无。";
-            mainBtn.innerText = "重试此关";
+            statusText.innerText = "椅子太小，你没能挤进去。";
+            mainBtn.innerText = "再次确证";
         }
         
         levelText.innerText = `关卡 ${currentLevel}`;
