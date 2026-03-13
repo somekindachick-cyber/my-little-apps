@@ -1,90 +1,439 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<title>my-little-apps</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>my-little-apps</title>
+  <style>
+    :root {
+      --bg: #f6f3ee;
+      --card: rgba(255,255,255,0.72);
+      --text: #1d1d1f;
+      --muted: #6b6b6f;
+      --line: rgba(0,0,0,0.08);
+      --accent: #1f6fff;
+      --accent-soft: rgba(31,111,255,0.08);
+      --shadow: 0 10px 30px rgba(0,0,0,0.06);
+      --radius: 22px;
+      --maxw: 1120px;
+    }
 
-<style>
-body{
-    font-family: Arial, sans-serif;
-    max-width:700px;
-    margin:60px auto;
-    line-height:1.6;
-}
+    * {
+      box-sizing: border-box;
+    }
 
-h1{
-    font-size:48px;
-}
+    html {
+      scroll-behavior: smooth;
+    }
 
-.app{
-    margin:25px 0;
-}
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(95, 179, 255, 0.10), transparent 28%),
+        radial-gradient(circle at top right, rgba(255, 187, 120, 0.10), transparent 24%),
+        linear-gradient(180deg, #f8f6f2 0%, #f3efe8 100%);
+      min-height: 100vh;
+    }
 
-.number{
-    font-weight:bold;
-}
+    .wrap {
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
 
-a{
-    text-decoration:none;
-    color:#0066cc;
-}
-</style>
+    .hero {
+      padding: 28px 0 36px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 28px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.5);
+      backdrop-filter: blur(8px);
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(44px, 7vw, 84px);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+      font-weight: 800;
+    }
+
+    .subtitle {
+      margin-top: 18px;
+      max-width: 760px;
+      font-size: 20px;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .meta-item {
+      padding: 12px 16px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.58);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .meta-item strong {
+      color: var(--text);
+      font-weight: 700;
+      margin-right: 6px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 28px 0 20px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -0.03em;
+    }
+
+    .section-note {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 220px;
+      padding: 22px;
+      border-radius: var(--radius);
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.55);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+      overflow: hidden;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 36px rgba(0,0,0,0.09);
+      border-color: rgba(31,111,255,0.18);
+    }
+
+    .card::after {
+      content: "";
+      position: absolute;
+      right: -30px;
+      top: -30px;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(31,111,255,0.10), transparent 68%);
+      pointer-events: none;
+    }
+
+    .num {
+      font-size: 14px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .title {
+      font-size: 32px;
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+
+    .desc {
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.7;
+      margin-bottom: 18px;
+      max-width: 36ch;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: auto;
+      margin-bottom: 18px;
+    }
+
+    .tag {
+      font-size: 12px;
+      color: #505055;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.04);
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 42px;
+      padding: 0 16px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 700;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--text);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #000;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      color: var(--accent);
+      background: var(--accent-soft);
+      border: 1px solid rgba(31,111,255,0.12);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(31,111,255,0.12);
+      transform: translateY(-1px);
+    }
+
+    .footer {
+      margin-top: 44px;
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    @media (max-width: 860px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .title {
+        font-size: 28px;
+      }
+
+      .subtitle {
+        font-size: 18px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .wrap {
+        padding: 28px 16px 56px;
+      }
+
+      .hero {
+        padding-top: 8px;
+      }
+
+      .card {
+        min-height: auto;
+      }
+
+      .title {
+        font-size: 24px;
+      }
+
+      .desc {
+        font-size: 15px;
+      }
+
+      .btn {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
-
 <body>
+  <main class="wrap">
+    <section class="hero">
+      <div class="eyebrow">my-little-apps</div>
+      <h1>每天做一个<br>没用的小应用。</h1>
+      <div class="subtitle">
+        一些为情绪、朋友、攀岩、随机念头和奇怪审美服务的小工具。
+        它们不一定有用，但大多真实地出现在我的生活里。
+      </div>
 
-<h1>my-little-apps</h1>
+      <div class="meta">
+        <div class="meta-item"><strong>周期</strong>2026.03.10 → 2026.03.13</div>
+        <div class="meta-item"><strong>当前作品</strong>8 个</div>
+        <div class="meta-item"><strong>形式</strong>HTML / 原生 JS / GitHub Pages / Firebase</div>
+      </div>
+    </section>
 
-<p>我的小应用合集</p>
-<p>每天做一个没用的小应用。</p>
+    <div class="section-head">
+      <h2>作品目录</h2>
+      <div class="section-note">按编号持续增加中</div>
+    </div>
 
-<div class="app">
-<span class="number">01 · send-it</span><br>
-攀岩心情记录工具<br>
-<a href="send-it.html">打开</a>
-</div>
+    <section class="grid">
+      <article class="card">
+        <div class="num">01</div>
+        <div class="title">send-it</div>
+        <div class="desc">攀岩心情与训练记录工具。后来逐渐长出了统计、补录、按人区分、不同岩馆与不同类型攀岩等功能。</div>
+        <div class="tags">
+          <span class="tag">攀岩</span>
+          <span class="tag">记录</span>
+          <span class="tag">统计</span>
+        </div>
+        <div class="actions">
+          <a class="btn btn-primary" href="send-it.html">打开作品</a>
+        </div>
+      </article>
 
-<div class="app">
-<span class="number">02 · 宇宙怪花生生成器</span><br>
-随机生成宇宙怪花生<br>
-<a href="peanut.html">打开</a>
-</div>
+      <article class="card">
+        <div class="num">02</div>
+        <div class="title">宇宙怪花生生成器</div>
+        <div class="desc">本来想做宇宙怪花生成器，结果被理解成了宇宙怪花生。误会没有被纠正，反而被保留下来。</div>
+        <div class="tags">
+          <span class="tag">生成器</span>
+          <span class="tag">随机</span>
+          <span class="tag">误解产物</span>
+        </div>
+        <div class="actions">
+          <a class="btn btn-primary" href="cosmic-peanut.html">打开作品</a>
+        </div>
+      </article>
 
-<div class="app">
-<span class="number">03 · 知识问答</span><br>
-给小朋友玩的知识问答<br>
-<a href="quiz.html">打开</a>
-</div>
+      <article class="card">
+        <div class="num">03</div>
+        <div class="title">知识问答</div>
+        <div class="desc">给小朋友玩的知识问答小程序。从 DeepSeek / 豆包切到 Claude 后，结果终于变得比较完整。</div>
+        <div class="tags">
+          <span class="tag">问答</span>
+          <span class="tag">小游戏</span>
+          <span class="tag">儿童向</span>
+        </div>
+        <div class="actions">
+          <a class="btn btn-primary" href="knowledge-cards.html">打开</a>
+        </div>
+      </article>
 
-<div class="app">
-<span class="number">04 · 找岩羊</span><br>
-在山羊里找到岩羊<br>
-<a href="goat.html">打开</a>
-</div>
+      <article class="card">
+        <div class="num">04</div>
+        <div class="title">找岩羊</div>
+        <div class="desc">在山羊里找出岩羊。一个很小的视觉搜索游戏，但完成度 surprisingly 高。</div>
+        <div class="tags">
+          <span class="tag">找茬</span>
+          <span class="tag">视觉游戏</span>
+          <span class="tag">Gemini</span>
+        </div>
+        <div class="actions">
+          <a class="btn btn-primary" href="goat.html">打开</a>
+        </div>
+      </article>
 
-<div class="app">
-<span class="number">05 · 生气急救器</span><br>
-8bit情绪释放工具<br>
-<a href="anger-kit3.1.html">打开</a>
-</div>
+      <article class="card">
+        <div class="num">05</div>
+        <div class="title">生气急救器</div>
+        <div class="desc">8-bit 像素风情绪管理工具。按住红按钮蓄力，爆炸之后，守护者会降临并替我接住一点怒气。</div>
+        <div class="tags">
+          <span class="tag">情绪工具</span>
+          <span class="tag">8-bit</span>
+          <span class="tag">Firebase</span>
+        </div>
+        <div class="actions">
+          <a class="btn btn-primary" href="anger-kit3.1.html">打开</a>
+        </div>
+      </article>
 
-<div class="app">
-<span class="number">06 · 西西今天吃什么</span><br>
-给西西的随机吃饭决策器<br>
-<a href="xixi-food.html">打开</a>
-</div>
+      <article class="card">
+        <div class="num">06</div>
+        <div class="title">西西今天吃什么</div>
+        <div class="desc">给西西定制的吃饭决策器。外卖、下馆子、自己做，全部围绕她真实的口味和活动范围来设计。</div>
+        <div class="tags">
+          <span class="tag">朋友定制</span>
+          <span class="tag">吃饭</span>
+          <span class="tag">决策器</span>
+        </div>
+        <div class="actions">
+          <a class="btn btn-primary" href="sissi-menu.html">打开</a>
+        </div>
+      </article>
 
-<div class="app">
-<span class="number">07 · 西西的答案</span><br>
-答案之书<br>
-<a href="xixi-answer.html">打开</a>
-</div>
+      <article class="card">
+        <div class="num">07</div>
+        <div class="title">西西的答案</div>
+        <div class="desc">一个答案之书式的小工具。目标是温暖、简短、能帮她做决定。暂时还没有完全长成满意的版本。</div>
+        <div class="tags">
+          <span class="tag">答案之书</span>
+          <span class="tag">朋友定制</span>
+          <span class="tag">半成品</span>
+        </div>
+        <div class="actions">
+          <a class="btn btn-primary" href="sissi-answer.html">打开</a>
+        </div>
+      </article>
 
-<div class="app">
-<span class="number">08 · 彩色袜子生成器</span><br>
-生成奇怪的袜子<br>
-<a href="socks.html">打开</a>
-</div>
+      <article class="card">
+        <div class="num">08</div>
+        <div class="title">彩色袜子生成器</div>
+        <div class="desc">最初只是想要一个形状正常的像素袜子，结果变成了一次关于轮廓、误差、ASCII 与几何约束的斗争。</div>
+        <div class="tags">
+          <span class="tag">像素</span>
+          <span class="tag">生成器</span>
+          <span class="tag">袜子</span>
+        </div>
+        <div class="actions">
+          <a class="btn btn-primary" href="colorful-sock-generator2.0.html">打开</a>
+        </div>
+      </article>
+    </section>
 
+    <footer class="footer">
+      这个页面会继续增长。<br>
+      它既是小应用合集，也有点像另一种形式的日记。
+    </footer>
+  </main>
 </body>
 </html>
