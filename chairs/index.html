@@ -3,116 +3,224 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>存在与空虚：哲学家抢椅子</title>
+    <title>存在主义：椅子争夺战 (加垃圾话版)</title>
     <style>
-        body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            overflow: hidden; background: #f0f0f0; font-family: "Microsoft YaHei", sans-serif;
-        }
-        #game-container {
+        :root { --bg-color: #f0f0f0; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg-color); font-family: "Georgia", serif; }
+        
+        #game-stage {
             position: relative; width: 100vw; height: 100vh;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            display: flex; justify-content: center; align-items: center;
+            background: #fff;
         }
-        #bg-image {
-            max-width: 100%; max-height: 80vh; transition: opacity 0.5s ease;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+
+        #chair {
+            position: absolute; width: 220px; z-index: 1;
+            transition: transform 0.1s;
         }
-        #ui-layer {
-            position: absolute; bottom: 10%; width: 80%;
-            background: rgba(255, 255, 255, 0.9); padding: 20px;
-            border-radius: 10px; text-align: center; border: 2px solid #333;
+
+        .philosopher {
+            position: absolute; width: 140px; cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 5;
+        }
+
+        .player { filter: drop-shadow(0 0 15px rgba(46, 204, 113, 0.8)); z-index: 10; }
+        .ai { filter: grayscale(0.8) opacity(0.9); }
+
+        /* 垃圾话气泡 */
+        .shout {
+            position: absolute; background: white; border: 2px solid #000;
+            padding: 5px 10px; border-radius: 10px; font-size: 14px;
+            white-space: nowrap; pointer-events: none; z-index: 20;
+            animation: pop 1s forwards;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0) translateY(0); opacity: 0; }
+            20% { transform: scale(1.2) translateY(-20px); opacity: 1; }
+            100% { transform: scale(1) translateY(-40px); opacity: 0; }
+        }
+
+        /* UI层 */
+        #ui {
+            position: absolute; top: 20px; text-align: center; width: 100%;
+            z-index: 100;
+        }
+        .msg-box {
+            background: rgba(255,255,255,0.95); padding: 20px; border-radius: 15px;
+            display: inline-block; border: 3px solid #333; box-shadow: 10px 10px 0px #333;
         }
         .btn {
-            padding: 10px 20px; margin: 10px; cursor: pointer;
-            background: #333; color: white; border: none; border-radius: 5px;
-            transition: 0.3s;
+            background: #000; color: #fff; border: none; padding: 12px 25px;
+            font-size: 18px; border-radius: 5px; cursor: pointer; margin-top: 10px;
         }
-        .btn:hover { background: #555; }
-        #status { font-style: italic; color: #666; margin-bottom: 10px; }
-        #dialogue { font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; }
+        #timer { font-size: 3rem; font-weight: bold; color: #ff4757; height: 60px; }
+        #level-tag { font-weight: bold; color: #2f3542; text-transform: uppercase; }
     </style>
 </head>
 <body>
 
-<div id="game-container">
-    <img id="bg-image" src="image_78213f.png" alt="游戏场景">
-
-    <div id="ui-layer">
-        <div id="status">宇宙起初是一片虚无...</div>
-        <div id="dialogue">这里只有一把塑料椅子。你存在吗？</div>
-        <div id="controls">
-            <button class="btn" onclick="nextStep()">我坐，故我在</button>
+<div id="game-stage">
+    <img id="chair" src="image_78211d.jpg" alt="椅子">
+    
+    <div id="ui">
+        <div class="msg-box">
+            <div id="level-tag">第 1 关：孤独的冥想者</div>
+            <div id="timer"></div>
+            <div id="status">准备好确证你的存在了吗？</div>
+            <button id="start-btn" class="btn" onclick="startGame()">开始争夺</button>
         </div>
     </div>
 </div>
 
 <script>
-    // 游戏状态管理
-    let stage = 0;
-    const imgDisplay = document.getElementById('bg-image');
-    const dialogue = document.getElementById('dialogue');
-    const statusText = document.getElementById('status');
-    const controls = document.getElementById('controls');
+    let level = 1;
+    let isRacing = false;
+    const stage = document.getElementById('game-stage');
+    const chair = document.getElementById('chair');
+    const status = document.getElementById('status');
+    const timerDisplay = document.getElementById('timer');
+    const startBtn = document.getElementById('start-btn');
+    const levelTag = document.getElementById('level-tag');
 
-    // 图片资源映射 (请确保文件名正确)
-    const assets = {
-        emptyChairWhite: 'image_78213f.png', // 只有椅子的白底图
-        manOnChairWhite: 'image_78215a.png', // 哲学家坐在白底椅子上
-        emptyChairGrass: 'image_78211d.jpg', // 只有椅子的草地图
-        manOnChairGrass: 'image_782124.jpg'  // 哲学家坐在草地椅子上
-    };
+    const quotes = [
+        "上帝已死，但这椅子没死！",
+        "我思故我在，我坐故我赢！",
+        "这把椅子属于物自体！",
+        "痛苦是存在的本质，抢不到也是！",
+        "你只是个AI生成的幻觉！",
+        "西西弗斯也会想要这把椅子的！",
+        "这就是永恒轮回的终点！",
+        "给虚无留个座！"
+    ];
 
-    function nextStep() {
-        stage++;
-        updateGame();
+    const titles = ["孤独的冥想者", "辩论赛常客", "虚无主义斗士", "存在主义大师", "椅子上的上帝"];
+
+    function startGame() {
+        startBtn.style.display = 'none';
+        resetRound();
+        
+        let count = 3;
+        timerDisplay.innerText = count;
+        
+        let countdown = setInterval(() => {
+            count--;
+            if (count > 0) {
+                timerDisplay.innerText = count;
+                // 倒计时的时候就开始喷垃圾话
+                spawnShout("准备受死吧，凡人！");
+            } else {
+                clearInterval(countdown);
+                timerDisplay.innerText = "抢！！！";
+                go();
+            }
+        }, 1000);
     }
 
-    function updateGame() {
-        switch(stage) {
-            case 1:
-                imgDisplay.src = assets.manOnChairWhite;
-                statusText.innerText = "确证阶段：第一层现实";
-                dialogue.innerText = "你坐下了。沉重的肉身赋予了虚无某种意义。";
-                controls.innerHTML = `<button class="btn" onclick="nextStep()">观察四周</button>`;
-                break;
-            
-            case 2:
-                imgDisplay.src = assets.emptyChairGrass;
-                statusText.innerText = "幻象阶段：欲望的草地";
-                dialogue.innerText = "世界突然变得丰富，有了草地和鸟。但你却感到一阵空虚，你站了起来。";
-                controls.innerHTML = `<button class="btn" onclick="nextStep()">重新夺回座位</button>`;
-                break;
+    function resetRound() {
+        document.querySelectorAll('.philosopher, .shout').forEach(p => p.remove());
+        chair.src = 'image_78211d.jpg';
+        levelTag.innerText = `第 ${level} 关：${titles[Math.min(level-1, titles.length-1)]}`;
 
-            case 3:
-                imgDisplay.src = assets.manOnChairGrass;
-                statusText.innerText = "冲突阶段：社会契约";
-                dialogue.innerText = "一个路过的虚无主义者试图抢走你的椅子！";
-                controls.innerHTML = `
-                    <button class="btn" onclick="debate()">用哲学辩论</button>
-                    <button class="btn" onclick="fight()">用物理驱赶</button>
-                `;
-                break;
-            
-            case 4:
-                // 结局
-                statusText.innerText = "终局：永恒的回返";
-                dialogue.innerText = "椅子终会烂掉，草地终会枯萎。你在这把29块9的椅子上悟到了宇宙的终极真理。";
-                controls.innerHTML = `<button class="btn" onclick="location.reload()">重新进入轮回</button>`;
-                break;
+        createPhilosopher(true); // 玩家
+        for(let i=0; i < level; i++) {
+            createPhilosopher(false); // AI
         }
     }
 
-    function debate() {
-        dialogue.innerText = "你告诉他：‘椅子只是感官的幻觉。’ 对手陷入了深思，羞愧地离开了。";
-        controls.innerHTML = `<button class="btn" onclick="nextStep()">继续思考</button>`;
+    function createPhilosopher(isPlayer) {
+        const p = document.createElement('img');
+        p.src = 'image_78215a.png';
+        p.className = isPlayer ? 'philosopher player' : 'philosopher ai';
+        
+        // 随机初始位置
+        const isLeft = Math.random() > 0.5;
+        p.style.left = isLeft ? '-150px' : (window.innerWidth + 50) + 'px';
+        p.style.top = (20 + Math.random() * 50) + 'vh';
+        
+        if(isPlayer) p.onclick = () => playerWin();
+        stage.appendChild(p);
     }
 
-    function fight() {
-        dialogue.innerText = "你挥舞着拳头，但这并不符合哲学家的身份。你感到一阵偏头痛。";
-        controls.innerHTML = `<button class="btn" onclick="nextStep()">勉强坐稳</button>`;
+    function spawnShout(text, element) {
+        const shout = document.createElement('div');
+        shout.className = 'shout';
+        shout.innerText = text || quotes[Math.floor(Math.random() * quotes.length)];
+        
+        if(element) {
+            shout.style.left = element.offsetLeft + 'px';
+            shout.style.top = (element.offsetTop - 30) + 'px';
+        } else {
+            shout.style.left = '50%';
+            shout.style.top = '50%';
+        }
+        stage.appendChild(shout);
     }
 
+    function go() {
+        isRacing = true;
+        const philosophers = document.querySelectorAll('.philosopher');
+        
+        philosophers.forEach((p) => {
+            if (!p.classList.contains('player')) {
+                // AI 随机时间冲刺
+                const delay = 500 + Math.random() * 2000; 
+                setTimeout(() => {
+                    if(isRacing) {
+                        spawnShout(null, p);
+                        p.style.left = '45%'; // 冲向中心
+                        p.style.top = '45%';
+                        
+                        // 判定AI获胜的时间比移动动画稍微晚一点
+                        setTimeout(() => {
+                            if(isRacing) aiWin();
+                        }, 300);
+                    }
+                }, delay);
+            } else {
+                // 玩家可以动了，增加一点视觉提示
+                p.style.transform = "scale(1.2)";
+            }
+        });
+    }
+
+    function playerWin() {
+        if(!isRacing) return;
+        isRacing = false;
+        shakeChair();
+        finishRound("胜利！你定义了现实。", true);
+    }
+
+    function aiWin() {
+        if(!isRacing) return;
+        isRacing = false;
+        shakeChair();
+        finishRound("你被挤进了虚无之中。", false);
+    }
+
+    function shakeChair() {
+        chair.style.transform = "scale(1.1) rotate(5deg)";
+        setTimeout(() => chair.style.transform = "scale(1) rotate(0deg)", 200);
+    }
+
+    function finishRound(text, success) {
+        timerDisplay.innerText = "";
+        chair.src = 'image_782124.jpg';
+        
+        document.querySelectorAll('.philosopher').forEach(p => p.style.opacity = '0');
+
+        if (success) {
+            level++;
+            status.innerText = text;
+            startBtn.innerText = "挑战更多的哲学家";
+        } else {
+            level = 1;
+            status.innerText = text;
+            startBtn.innerText = "重头再来";
+        }
+        startBtn.style.display = 'inline-block';
+    }
 </script>
-
 </body>
 </html>
