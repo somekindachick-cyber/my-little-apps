@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🦖 恐龙探险家 - 50题无重复版</title>
+    <style>
+        :root { --dino-green: #4CAF50; --dino-earth: #795548; --dino-sky: #E3F2FD; }
+        body { font-family: sans-serif; background-color: var(--dino-sky); display: flex; justify-content: center; padding: 20px; }
+        #app { background: white; width: 100%; max-width: 500px; border-radius: 20px; border: 4px solid var(--dino-green); padding: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+        .score { color: #E65100; font-weight: bold; float: right; }
+        .question-text { font-size: 1.2rem; margin: 25px 0; line-height: 1.4; font-weight: bold; }
+        .options-grid { display: grid; gap: 10px; }
+        .opt-btn { background: #f9f9f9; border: 2px solid #ddd; padding: 15px; border-radius: 12px; cursor: pointer; text-align: left; }
+        .correct { background: #C8E6C9 !important; border-color: #4CAF50 !important; }
+        .wrong { background: #FFCDD2 !important; border-color: #F44336 !important; }
+        #feedback { margin-top: 15px; background: #FFF9C4; padding: 15px; border-radius: 10px; display: none; font-size: 0.9rem; border-left: 5px solid #FFD700; }
+        .next-btn { width: 100%; margin-top: 20px; background: var(--dino-green); color: white; border: none; padding: 15px; border-radius: 12px; font-size: 1.1rem; display: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div><span id="progress">第 1 / 50 题</span> <span class="score">⭐ 积分: <span id="score">0</span></span></div>
+    <div class="question-text" id="question">加载中...</div>
+    <div id="options" class="options-grid"></div>
+    <div id="feedback"></div>
+    <button id="next-btn" class="next-btn" onclick="handleNext()">下一关 ➔</button>
+</div>
+
+<script>
+    const db = [
+        // --- 类别1：最新科学发现 ---
+        {q:"科学家在恐龙化石里发现了‘黑素体’，这能帮我们知道什么？", a:["恐龙的体重", "恐龙羽毛的真实颜色"], c:1, k:"通过微观结构，我们现在知道中华龙鸟有橙色条纹，小盗龙有像乌鸦一样的闪亮黑色。"},
+        
+        {q:"霸王龙其实跑不快，它追捕猎物主要靠什么？", a:["像狗一样长途追赶", "短距离伏击和强大的嗅觉"], c:1, k:"霸王龙体型太大，高速奔跑会骨折。它更像是一个潜伏的高手。"},
+        {q:"棘龙背上的‘大帆’，最不可能的功能是？", a:["用来像翅膀一样飞", "用来调节体温或展示"], c:0, k:"棘龙的帆由脊椎骨支撑，非常沉重，完全不能飞行。"},
+        {q:"在显微镜下，恐龙的骨头年轮能告诉我们什么？", a:["它活了多少岁", "它有多少个孩子"], c:0, k:"恐龙骨骼像树木一样有生长线，霸王龙通常只能活到约30岁。"},
+        {q:"‘半水生’恐龙指的是什么？", a:["一辈子只在深海里", "既在陆地活动也在水里捕食"], c:1, k:"如棘龙和一些哈兹卡盗龙，它们像大鹅或鳄鱼一样在水边生活。"},
+
+        // --- 类别2：中国恐龙之光 ---
+        {q:"中国辽宁发现的‘小盗龙’最奇特的地方是？", a:["只有两只脚", "手和脚上都有飞行羽毛"], c:1, k:"它是‘四翼恐龙’，不仅手有翅膀，脚上也长着翅膀。"},
+        
+        {q:"‘巨龙类’恐龙（如阿根廷龙）的蛋，通常长得像什么？", a:["像橄榄球一样长", "像圆圆的柚子"], c:1, k:"巨龙类的蛋通常很圆，而且它们会挖巨大的土坑成批产蛋。"},
+        {q:"马门溪龙的脖子由多少块骨头组成？", a:["7块（和人一样）", "19块（极其长）"], c:1, k:"它的颈椎数量多且长，使它成为世界上脖子比例最长的生物之一。"},
+        {q:"山东诸城发现的‘巨大华夏龙’是什么类型的恐龙？", a:["长脖子恐龙", "鸭嘴龙类"], c:1, k:"它是世界上最大的鸭嘴龙类之一，头部长得像鸭子嘴巴。"},
+
+        // --- 类别3：古生物邻居（非恐龙） ---
+        {q:"生活在海里的‘鱼龙’，它是怎么呼吸的？", a:["用鳃在水下呼吸", "必须浮出水面换气"], c:1, k:"鱼龙是爬行动物，没有鳃，必须像鲸鱼一样呼吸空气。"},
+        
+        {q:"风神翼龙的翅膀是由什么构成的？", a:["像鸟一样的羽毛", "皮肤构成的翼膜"], c:1, k:"翼龙的翅膀像蝙蝠一样，是皮肤膜，由一根超长的手指支撑。"},
+        {q:"三叶虫的眼睛是由什么物质组成的？", a:["和人一样的软组织", "坚硬的方解石（石头）"], c:1, k:"三叶虫拥有生物界最神奇的晶体眼睛。"},
+        {q:"恐龙时代的‘魔鬼蛙’，它最著名的绝活是？", a:["能吃下小恐龙", "会像鸟一样飞"], c:0, k:"这种古代巨蛙力量极大，真的能吞食刚出生的小恐龙。"},
+
+        // --- 类别4：解剖学与生存 ---
+        {q:"三角龙的‘头盾’（脖子后的骨板）上有很多小洞吗？", a:["没有，是实心的", "有的，用来减轻重量"], c:0, k:"与开角龙不同，三角龙的头盾通常是实心的，防御力极强。"},
+        {q:"恐龙的智商（EQ）通常通过什么来比较？", a:["体重比", "脑量与体重的比例"], c:1, k:"伤齿龙的脑量比例最高，被认为是最聪明的恐龙。"},
+        {q:"剑龙尾巴上的四根大尖刺叫什么？", a:["尾锤", "萨格米泽（Thagomizer）"], c:1, k:"这是专门给这四根刺起的科学名字，非常致命。"},
+        {q:"所有恐龙都是‘卵生’（生蛋）吗？", a:["是的", "有些是胎生"], c:0, k:"目前所有证据都显示恐龙是下蛋的，而有些海生爬行动物则是胎生。"},
+        {q:"鸭嘴龙嘴里的牙齿大约有多少颗？", a:["几十颗", "上千颗排成牙刷状"], c:1, k:"它们拥有‘牙齿电池’，可以不断磨碎坚韧的植物。"},
+
+        // --- 类别5：环境与灭绝 ---
+        {q:"恐龙时代（中生代）的地球，陆地是什么样的？", a:["和现在一样", "所有陆地连在一起（盘古大陆）"], c:1, k:"在恐龙初期，你可以从中国走路去非洲，因为陆地是连着的。"},
+        
+        {q:"白垩纪末期撞击地球的小行星，大约有多大？", a:["一间房子大", "一座珠穆朗玛峰大"], c:1, k:"那颗小行星直径约10公里，撞击威力相当于10亿颗原子弹。"},
+        {q:"为什么我们在极地也能发现恐龙？", a:["因为那时极地没有冰，很温暖", "因为恐龙穿皮毛"], c:0, k:"当时的地球没有南北极冰盖，气候非常湿热。"},
+        {q:"化石形成最理想的条件是？", a:["死在沙漠里被风干", "死后迅速被泥沙掩埋"], c:1, k:"迅速掩埋能防止遗体被氧气和野兽破坏。"},
+        {q:"恐龙灭绝后，什么动物开始统治地球？", a:["大型昆虫", "哺乳动物和鸟类"], c:1, k:"哺乳动物躲过了灾难，并在之后演化成了大象、老虎和人类。"},
+
+        // --- 继续补充至50题（均为新题目） ---
+        {q:"暴龙（霸王龙）的牙齿是什么形状的？", a:["像锋利的刀片", "像粗壮的香蕉"], c:1, k:"它们的牙齿不是为了切肉，而是为了咬碎骨头。"},
+        {q:"梁龙的尾巴末端非常细长，有什么用？", a:["用来像鞭子一样打响", "用来抓树枝"], c:0, k:"科学家模拟发现，梁龙尾尖甩动的速度可能超过音速！"},
+        {q:"哪种恐龙的头骨上长着像喇叭一样的空心管子？", a:["三角龙", "副栉龙"], c:1, k:"它们通过这根管子发出低沉的‘嗡嗡’声进行通讯。"},
+        {q:"‘肿头龙’的头顶厚度大约是多少？", a:["2厘米", "25厘米"], c:1, k:"这简直就像戴了一个超级厚实的岩石钢盔。"},
+        {q:"镰刀龙那长达1米的巨爪是用来？", a:["钩住树枝吃叶子", "飞快地跑步"], c:0, k:"虽然外表恐怖，但镰刀龙其实是吃植物的怪咖。"},
+        {q:"始祖鸟化石证明了什么？", a:["鸟类起源于水里", "恐龙向鸟类进化的过程"], c:1, k:"它既有恐龙的牙齿和尾巴，又有鸟类的羽毛。"},
+        {q:"恐龙的耳朵能听到什么声音？", a:["只有超声波", "低频率的震动声音"], c:1, k:"大型恐龙更擅长听到地面传来的沉重低音。"},
+        {q:"恐龙会‘换牙’吗？", a:["一辈子只长一次牙", "一辈子不断掉牙换新牙"], c:1, k:"恐龙就像鲨鱼，旧牙磨损了，下面的新牙就会顶上来。"},
+        {q:"在三叠纪，最早的恐龙体型大约多大？", a:["像大巴车", "像大狗或猫一样小"], c:1, k:"恐龙是从小型、敏捷的祖先慢慢变大的。"},
+        {q:"‘古神翼龙’头上巨大的冠饰可能是用来？", a:["当作降落伞", "调节体温或吸引同伴"], c:1, k:"绚丽的头冠通常是用来在群体里‘耍帅’的。"},
+        {q:"‘恐爪龙’脚上那个巨大的镰刀爪是用来？", a:["挖地洞", "像匕首一样刺入猎物"], c:1, k:"这是它们最致命的武器。"},
+        {q:"恐龙时代有类似蜜蜂的昆虫吗？", a:["没有", "白垩纪花朵出现后就有了"], c:1, k:"昆虫和花朵是‘好搭档’，一起演化出来的。"},
+        {q:"恐龙的皮肤化石显示，有的恐龙长着？", a:["类似纽扣的骨质圆盘", "软绵绵的脂肪"], c:0, k:"有些恐龙（如萨尔塔龙）皮肤里嵌着小骨片，像穿了内层铠甲。"},
+        {q:"‘似鸟龙’之所以叫这个名字，是因为？", a:["它会飞", "它的骨骼结构和鸵鸟非常像"], c:1, k:"它跑得很快，外形除了手之外，非常像没毛的鸵鸟。"},
+        {q:"如果霸王龙摔一跤，它能轻易站起来吗？", a:["很难，因为手太短了", "非常容易"], c:0, k:"对于成年霸王龙，摔跤可能是致命的。"},
+        {q:"恐龙的体温是恒定的吗？", a:["全是冷血动物", "大部分可能是温血或代谢很快"], c:1, k:"现代研究认为恐龙生长极快，更接近温血动物。"},
+        {q:"‘哈兹卡盗龙’长得最像现在的哪种动物？", a:["老鹰", "天鹅或企鹅"], c:1, k:"它有长长的脖子和桨状的前肢，适合在水里摸鱼。"},
+        {q:"哪种恐龙被戏称为‘牛角龙’？", a:["食肉牛龙", "剑龙"], c:0, k:"食肉牛龙眼睛上方长着两只像公牛一样的短角。"},
+        {q:"恐龙会像现代鸟类一样迁徙吗？", a:["不会", "会，为了寻找食物长途跋涉"], c:1, k:"北极地区的角龙类被认为会随季节移动。"},
+        {q:"‘蛇颈龙’的脖子是由多少块骨头组成的？", a:["只有10块", "多达70块以上"], c:1, k:"这让它们的脖子像一条灵活的长蛇。"},
+        {q:"恐龙时代的海洋里有珊瑚礁吗？", a:["没有", "有的，和现在类似"], c:1, k:"珊瑚礁在那时也是海洋生物的乐园。"},
+        {q:"最重的恐龙阿根廷龙，它的心跳速度？", a:["非常快", "非常缓慢"], c:1, k:"越巨大的动物，心跳通常越慢，以维持巨大的身体运作。"},
+        {q:"‘甲龙’的壳能防住霸王龙的咬合吗？", a:["完全防不住", "能起到很强的保护作用"], c:1, k:"甲龙的背部是非常硬的骨盾，霸王龙很难下口。"},
+        {q:"恐龙会像猫一样咕噜咕噜叫吗？", a:["可能通过闭口鸣叫发出震动声", "肯定不会"], c:0, k:"研究认为很多恐龙不需要张嘴就能发出巨大的共鸣声。"},
+        {q:"恐龙死后变石，最快需要多久？", a:["100年", "通常要几万年甚至更久"], c:1, k:"这是一个漫长的矿物质置换过程。"},
+        {q:"古生物学家用什么工具清理精细的化石？", a:["大铲子", "小牙刷和牙科钻机"], c:1, k:"清理化石需要像牙医一样耐心细致。"},
+        {q:"最后一名探险家，你准备好出发了吗？", a:["准备好了！", "出发！"], c:0, k:"你是最棒的古生物小博士！"}
+    ];
+
+    let score = 0, current = 0;
+
+    function render() {
+        const item = db[current];
+        document.getElementById('progress').innerText = `第 ${current + 1} / ${db.length} 题`;
+        document.getElementById('question').innerText = item.q;
+        document.getElementById('feedback').style.display = 'none';
+        document.getElementById('next-btn').style.display = 'none';
+        
+        const opts = document.getElementById('options');
+        opts.innerHTML = '';
+        item.a.forEach((text, i) => {
+            const b = document.createElement('button');
+            b.className = 'opt-btn';
+            b.innerText = text;
+            b.onclick = () => select(i);
+            opts.appendChild(b);
+        });
+    }
+
+    function select(idx) {
+        const item = db[current];
+        const btns = document.querySelectorAll('.opt-btn');
+        if(document.getElementById('next-btn').style.display === 'block') return;
+
+        if(idx === item.c) {
+            btns[idx].classList.add('correct');
+            score += 10;
+            document.getElementById('score').innerText = score;
+        } else {
+            btns[idx].classList.add('wrong');
+            btns[item.c].classList.add('correct');
+        }
+
+        const fb = document.getElementById('feedback');
+        fb.innerHTML = `<strong>探险笔记：</strong>${item.k}`;
+        fb.style.display = 'block';
+        document.getElementById('next-btn').style.display = 'block';
+    }
+
+    function handleNext() {
+        current++;
+        if(current < db.length) render();
+        else {
+            document.getElementById('app').innerHTML = `<div style="text-align:center"><h2>🎉 探险结束！</h2><p>总分：${score}</p><button onclick="location.reload()">再玩一次</button></div>`;
+        }
+    }
+
+    render();
+</script>
+</body>
+</html>
