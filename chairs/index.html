@@ -3,172 +3,202 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>存在主义：手动抢座修正版</title>
+    <title>存在主义：草地争夺战</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #fff; font-family: "serif"; touch-action: none; }
-        #game-stage { position: relative; width: 100vw; height: 100vh; background: #f9f9f9; }
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; background: #222; font-family: "serif"; 
+            touch-action: none; 
+        }
         
-        #chair-target {
-            position: absolute; width: 200px; left: 50%; top: 50%;
-            transform: translate(-50%, -50%); z-index: 1;
-            pointer-events: none; /* 防止椅子挡住拖拽检测 */
+        #game-stage { 
+            position: relative; width: 100vw; height: 100vh; 
+            /* 使用带有椅子的草地图作为全屏背景 */
+            background-image: url('image_78211d.jpg');
+            background-size: cover;
+            background-position: center;
+            transition: background-image 0.3s ease-in-out;
+        }
+
+        /* 隐藏原始的椅子img标签，因为背景已经带了椅子 */
+        /* 但为了碰撞检测方便，我们放一个透明的判定区在中心 */
+        #chair-hitbox {
+            position: absolute; width: 100px; height: 100px;
+            left: 50%; top: 50%; transform: translate(-50%, -50%);
+            z-index: 1; pointer-events: none;
         }
 
         .philosopher {
             position: absolute; width: 130px; z-index: 10;
-            cursor: move; cursor: grab;
-            user-select: none;
-            -webkit-user-drag: none; /* 关键：禁止系统默认拖拽 */
+            user-select: none; -webkit-user-drag: none;
+            transition: transform 0.2s ease;
         }
-        .philosopher:active { cursor: grabbing; }
 
-        .player { filter: drop-shadow(0 0 12px rgba(46, 204, 113, 0.6)); }
-        .ai { filter: grayscale(1) opacity(0.6); pointer-events: none; }
+        /* 玩家：初始位置在右下角 */
+        .player {
+            filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.8));
+            cursor: grab;
+            right: 5%; bottom: 10%; /* 确认为右下角 */
+        }
+        .player:active { cursor: grabbing; transform: scale(1.1); }
 
-        #ui-overlay {
+        /* AI：竞争者 */
+        .ai { filter: grayscale(1) contrast(1.2) opacity(0.7); pointer-events: none; }
+
+        /* UI 面板 */
+        #ui {
             position: absolute; top: 0; width: 100%; text-align: center;
             pointer-events: none; z-index: 100;
         }
         .panel {
-            display: inline-block; background: white; border: 3px solid #000;
-            padding: 15px 30px; margin-top: 20px; pointer-events: auto;
-            box-shadow: 8px 8px 0px #000;
+            display: inline-block; background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(5px); border: 2px solid #000;
+            padding: 15px 40px; margin-top: 20px; pointer-events: auto;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2); border-radius: 8px;
         }
-        .btn { background: #000; color: #fff; padding: 10px 25px; border: none; cursor: pointer; font-weight: bold; }
+        .btn { 
+            background: #2d3436; color: #fff; padding: 12px 30px; 
+            border: none; cursor: pointer; font-size: 18px; 
+            border-radius: 4px; transition: 0.3s;
+        }
+        .btn:hover { background: #000; }
+        #level-info { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
 <div id="game-stage">
-    <img id="chair-target" src="image_78211d.jpg" alt="椅子">
+    <div id="chair-hitbox"></div>
 
-    <div id="ui-overlay">
+    <div id="ui">
         <div class="panel">
-            <div id="status">找到你的哲学家，把他按在椅子上！</div>
-            <div id="info" style="font-size: 12px; margin: 5px 0;">当前关卡: <span id="lv-num">1</span></div>
-            <button id="start-btn" class="btn" onclick="initRound()">开始确证</button>
+            <div id="level-info">关卡 1</div>
+            <div id="status">将右下角的哲学家拖向椅子！</div>
+            <button id="main-btn" class="btn" onclick="startLevel()">确证存在</button>
         </div>
     </div>
 </div>
 
 <script>
-    let level = 1;
+    let currentLevel = 1;
     let isGaming = false;
-    let activePlayer = null;
     let isDragging = false;
-    let startX, startY, initialLeft, initialTop;
+    let playerObj, startX, startY, initX, initY;
 
     const stage = document.getElementById('game-stage');
-    const chair = document.getElementById('chair-target');
-    const startBtn = document.getElementById('start-btn');
+    const hitbox = document.getElementById('chair-hitbox');
+    const statusText = document.getElementById('status');
+    const levelText = document.getElementById('level-info');
+    const mainBtn = document.getElementById('main-btn');
 
-    function initRound() {
-        startBtn.style.display = 'none';
+    function startLevel() {
         isGaming = true;
+        isDragging = false;
+        mainBtn.style.display = 'none';
+        statusText.innerText = "抢占那个位子！";
+        
+        // 恢复初始背景
+        stage.style.backgroundImage = "url('image_78211d.jpg')";
+        
+        // 清理旧角色
         document.querySelectorAll('.philosopher').forEach(p => p.remove());
-        chair.src = 'image_78211d.jpg';
 
-        activePlayer = createPhilosopher(true);
-        for(let i=0; i < level; i++) { createAI(); }
-    }
-
-    function createPhilosopher(isPlayer) {
-        const img = document.createElement('img');
-        img.src = 'image_78215a.png';
-        img.className = isPlayer ? 'philosopher player' : 'philosopher ai';
+        // 生成玩家：固定在右下角
+        playerObj = document.createElement('img');
+        playerObj.src = 'image_78215a.png';
+        playerObj.className = 'philosopher player';
+        stage.appendChild(playerObj);
         
-        if(isPlayer) {
-            // 随机出现在左侧或下侧
-            img.style.left = '10%';
-            img.style.top = '70%';
-            bindDragEvents(img);
-        } else {
-            img.style.left = '110%'; // 屏幕外
-            img.style.top = Math.random() * 80 + '%';
+        addDragLogic(playerObj);
+
+        // 生成AI：从屏幕左侧或上方滑入
+        for (let i = 0; i < currentLevel; i++) {
+            createAI(i);
         }
-        
-        stage.appendChild(img);
-        return img;
     }
 
-    function createAI() {
-        const ai = createPhilosopher(false);
-        const duration = Math.max(0.8, 4 - (level * 0.5)); // 关卡越高越快
+    function createAI(i) {
+        const ai = document.createElement('img');
+        ai.src = 'image_78215a.png';
+        ai.className = 'philosopher ai';
+        ai.style.left = '-150px'; 
+        ai.style.top = (Math.random() * 60) + '%';
+        stage.appendChild(ai);
+
+        const duration = Math.max(0.6, 3.5 - (currentLevel * 0.4));
         
         setTimeout(() => {
-            if(!isGaming) return;
-            ai.style.transition = `all ${duration}s cubic-bezier(0.4, 0, 0.2, 1)`;
+            if (!isGaming) return;
+            ai.style.transition = `all ${duration}s cubic-bezier(0.1, 0.7, 1.0, 0.1)`;
             ai.style.left = '45%';
-            ai.style.top = '40%';
+            ai.style.top = '45%';
             
-            const checkTimer = setInterval(() => {
-                if(!isGaming) clearInterval(checkTimer);
-                if(checkHit(ai)) { clearInterval(checkTimer); endGame(false); }
+            const aiInterval = setInterval(() => {
+                if (!isGaming) clearInterval(aiInterval);
+                if (isHit(ai)) { clearInterval(aiInterval); endRound(false); }
             }, 50);
-        }, 1000);
+        }, 800);
     }
 
-    function bindDragEvents(el) {
-        const onStart = (e) => {
-            if(!isGaming) return;
-            e.preventDefault(); // 阻止浏览器默认拖图行为
+    function addDragLogic(el) {
+        const move = (e) => {
+            if (!isDragging || !isGaming) return;
+            const pos = e.touches ? e.touches[0] : e;
+            el.style.left = (initX + (pos.clientX - startX)) + 'px';
+            el.style.top = (initY + (pos.clientY - startY)) + 'px';
+            el.style.right = 'auto'; // 拖动时解除右偏移限制
+            el.style.bottom = 'auto';
+
+            if (isHit(el)) { isDragging = false; endRound(true); }
+        };
+
+        const start = (e) => {
+            if (!isGaming) return;
+            e.preventDefault();
             isDragging = true;
             const pos = e.touches ? e.touches[0] : e;
             startX = pos.clientX;
             startY = pos.clientY;
-            initialLeft = el.offsetLeft;
-            initialTop = el.offsetTop;
+            initX = el.offsetLeft;
+            initY = el.offsetTop;
         };
 
-        const onMove = (e) => {
-            if(!isDragging || !isGaming) return;
-            const pos = e.touches ? e.touches[0] : e;
-            const dx = pos.clientX - startX;
-            const dy = pos.clientY - startY;
-            
-            el.style.left = (initialLeft + dx) + 'px';
-            el.style.top = (initialTop + dy) + 'px';
+        const stop = () => isDragging = false;
 
-            if(checkHit(el)) { isDragging = false; endGame(true); }
-        };
-
-        const onEnd = () => { isDragging = false; };
-
-        el.addEventListener('mousedown', onStart);
-        el.addEventListener('touchstart', onStart, {passive: false});
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('touchmove', onMove, {passive: false});
-        window.addEventListener('mouseup', onEnd);
-        window.addEventListener('touchend', onEnd);
+        el.addEventListener('mousedown', start);
+        el.addEventListener('touchstart', start, {passive: false});
+        window.addEventListener('mousemove', move);
+        window.addEventListener('touchmove', move, {passive: false});
+        window.addEventListener('mouseup', stop);
+        window.addEventListener('touchend', stop);
     }
 
-    function checkHit(el) {
+    function isHit(el) {
         const r1 = el.getBoundingClientRect();
-        const r2 = chair.getBoundingClientRect();
-        // 判定中心点重合度
-        const dist = Math.sqrt(
-            Math.pow((r1.left + r1.width/2) - (r2.left + r2.width/2), 2) +
-            Math.pow((r1.top + r1.height/2) - (r2.top + r2.height/2), 2)
-        );
-        return dist < 60; // 距离椅子中心60像素以内算坐下
+        const r2 = hitbox.getBoundingClientRect();
+        const dx = (r1.left + r1.width/2) - (r2.left + r2.width/2);
+        const dy = (r1.top + r1.height/2) - (r2.top + r2.height/2);
+        return Math.sqrt(dx*dx + dy*dy) < 60;
     }
 
-    function endGame(win) {
+    function endRound(win) {
+        if (!isGaming) return;
         isGaming = false;
-        chair.src = 'image_782124.jpg';
+        
         document.querySelectorAll('.philosopher').forEach(p => p.style.opacity = '0');
 
-        if(win) {
-            level++;
-            document.getElementById('status').innerText = "胜！你坐稳了。";
-            startBtn.innerText = "挑战更激烈的虚无";
+        if (win) {
+            stage.style.backgroundImage = "url('image_782124.jpg')"; // 切换到坐下的全景图
+            currentLevel++;
+            statusText.innerText = "你是现实的胜利者！";
+            mainBtn.innerText = "进入下一关";
         } else {
-            level = Math.max(1, level - 1);
-            document.getElementById('status').innerText = "哎呀，被抢先了！";
-            startBtn.innerText = "重新尝试";
+            statusText.innerText = "被捷足先登了！你落入了虚无。";
+            mainBtn.innerText = "重试此关";
         }
-        document.getElementById('lv-num').innerText = level;
-        startBtn.style.display = 'inline-block';
+        
+        levelText.innerText = `关卡 ${currentLevel}`;
+        mainBtn.style.display = 'inline-block';
     }
 </script>
 </body>
