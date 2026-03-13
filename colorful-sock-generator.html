@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>彩色袜子生成器</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100vh; font-family: 'SimSun', 'STSong', '宋体', serif; }
+  body {
+    background: linear-gradient(135deg, #f0a0e8 0%, #c97ff0 40%, #a06ee8 70%, #7b5fd4 100%);
+    min-height: 100vh; overflow-x: hidden;
+  }
+  h1 {
+    font-family: 'Montserrat', 'Arial Black', sans-serif; font-weight: 900;
+    font-size: clamp(1.8rem, 5vw, 3rem); text-align: center; color: #fff;
+    letter-spacing: 2px; text-shadow: 4px 4px 0 #7b00c8, 7px 7px 0 #39ff14;
+    padding: 28px 16px 6px; line-height: 1.1;
+  }
+  .subtitle {
+    text-align: center; color: #39ff14; font-family: 'Montserrat', sans-serif;
+    font-weight: 900; font-size: 0.78rem; letter-spacing: 5px; margin-bottom: 22px;
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+  @keyframes glow {
+    from { text-shadow: 0 0 8px #39ff14; }
+    to   { text-shadow: 0 0 22px #39ff14, 0 0 40px #00ff8899; }
+  }
+  .main-area {
+    display: flex; gap: 24px; max-width: 1000px; margin: 0 auto;
+    padding: 0 16px 40px; flex-wrap: wrap;
+  }
+  .left-panel { flex: 0 0 auto; width: 320px; min-width: 280px; display: flex; flex-direction: column; gap: 14px; }
+  .sock-frame {
+    background: rgba(255,255,255,0.55); border: 3px solid #39ff14;
+    border-radius: 18px; padding: 18px 16px;
+    box-shadow: 0 0 28px #39ff1450, 5px 5px 0 #7b00c840;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    backdrop-filter: blur(6px);
+  }
+  .sock-name {
+    font-family: 'Montserrat', sans-serif; font-weight: 900; font-size: 1.05rem;
+    color: #5a008a; text-align: center; text-shadow: 1px 1px 0 #c0f060;
+    min-height: 2.4em; line-height: 1.2;
+  }
+  /* viewBox 16×11, CSS 显示 192×132 */
+  #sockSvg {
+    display: block; width: 192px; height: 132px;
+    image-rendering: pixelated;
+    border: 2px solid #d0a0f8; border-radius: 10px; background: #faf0ff;
+  }
+  .sock-desc {
+    font-size: 0.84rem; color: #3a0060;
+    background: linear-gradient(120deg, #f5e0ff 70%, #e8ffd0 100%);
+    border-left: 4px solid #c060f0; border-radius: 8px;
+    padding: 10px 13px; line-height: 1.7; width: 100%;
+  }
+  .sock-desc .warn { color: #a00020; font-weight: bold; }
+  .sock-desc b { color: #6000a0; }
+  .rating-area { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .star { font-size: 1.6rem; cursor: pointer; color: #ddd; transition: color 0.1s, transform 0.1s; user-select: none; }
+  .star.lit { color: #ffcc00; text-shadow: 0 0 8px #ffaa00; }
+  .star:hover { color: #ffe000; transform: scale(1.25); }
+  .score-badge {
+    font-family: 'Montserrat', sans-serif; font-weight: 900; font-size: 0.9rem;
+    background: #39ff14; color: #1a1a1a; border-radius: 12px;
+    padding: 2px 12px; margin-left: 4px; min-width: 36px; text-align: center;
+    box-shadow: 2px 2px 0 #7b00c8;
+  }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; }
+  button {
+    font-family: 'Montserrat', sans-serif; font-weight: 900; font-size: 0.82rem;
+    border: none; border-radius: 8px; padding: 10px 16px; cursor: pointer;
+    transition: transform 0.1s; letter-spacing: 0.5px;
+  }
+  button:active { transform: scale(0.94); }
+  .btn-gen  { background: #7b00c8; color: #39ff14; box-shadow: 3px 3px 0 #39ff14; }
+  .btn-gen:hover  { background: #9a20e0; }
+  .btn-save { background: #39ff14; color: #1a1a1a; box-shadow: 3px 3px 0 #7b00c8; }
+  .btn-save:hover { background: #55ff30; }
+  .right-panel { flex: 1; min-width: 280px; }
+  .hall-title {
+    font-family: 'Montserrat', sans-serif; font-weight: 900; font-size: 1.25rem; color: #fff;
+    text-shadow: 2px 2px 0 #7b00c8, 4px 4px 0 #39ff14; margin-bottom: 14px;
+    text-align: center; letter-spacing: 2px;
+  }
+  .hall-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+    gap: 12px; max-height: 570px; overflow-y: auto; padding: 4px 2px;
+  }
+  .hall-grid::-webkit-scrollbar { width: 6px; }
+  .hall-grid::-webkit-scrollbar-thumb { background: #c060f0; border-radius: 4px; }
+  .empty-hall { grid-column:1/-1; text-align:center; color:#f0d0ff; font-size:0.9rem; padding:50px 10px; line-height:1.8; }
+  .card {
+    background: rgba(255,255,255,0.58); border: 2px solid #c060f0; border-radius: 12px;
+    padding: 10px 8px 8px; display: flex; flex-direction: column; align-items: center;
+    gap: 5px; cursor: pointer; transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s;
+    position: relative; backdrop-filter: blur(4px);
+  }
+  .card:hover { box-shadow: 0 0 18px #c060f090; transform: translateY(-3px); border-color: #39ff14; }
+  .card.active-card { border-color: #39ff14; box-shadow: 0 0 14px #39ff1480; }
+  .card svg { display:block; width:96px; height:66px; image-rendering:pixelated; border-radius:6px; border:1px solid #e0c0f8; background:#faf0ff; }
+  .card-name { font-family:'Montserrat',sans-serif; font-weight:900; font-size:0.65rem; color:#6000a0; text-align:center; line-height:1.2; word-break:break-all; }
+  .card-score { font-family:'Montserrat',sans-serif; font-weight:900; font-size:0.7rem; color:#fff; background:#ffaa00; border-radius:8px; padding:1px 8px; }
+  .card-del { position:absolute; top:3px; right:7px; font-size:0.75rem; color:#c00; cursor:pointer; font-weight:bold; opacity:0.55; font-family:monospace; }
+  .card-del:hover { opacity:1; }
+  .toast {
+    position:fixed; bottom:32px; left:50%; transform:translateX(-50%) translateY(10px);
+    background:#39ff14; color:#111; font-family:'Montserrat',sans-serif; font-weight:900;
+    padding:11px 30px; border-radius:20px; font-size:0.88rem;
+    box-shadow:4px 4px 0 #7b00c8; opacity:0; transition:opacity 0.35s, transform 0.35s;
+    pointer-events:none; z-index:999; white-space:nowrap;
+  }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  @media (max-width:640px) { .left-panel { width:100%; min-width:unset; } }
+</style>
+</head>
+<body>
+<h1>彩色袜子生成器</h1>
+<div class="subtitle">✦ PIXEL SOCK STUDIO ✦</div>
+
+<div class="main-area">
+  <div class="left-panel">
+    <div class="sock-frame">
+      <div class="sock-name" id="sockName">点击生成你的命运之袜</div>
+      <svg id="sockSvg" viewBox="0 0 16 11" xmlns="http://www.w3.org/2000/svg">
+        <g id="sockBody"></g>
+      </svg>
+      <div class="sock-desc" id="sockDesc">
+        <span class="warn">【待机中】</span><br>
+        传说中的彩色袜子正在宇宙深处等待召唤…<br>点击「生成新袜子」开启你的像素冒险。
+      </div>
+      <div class="rating-area">
+        <span class="star" data-v="1">★</span><span class="star" data-v="2">★</span>
+        <span class="star" data-v="3">★</span><span class="star" data-v="4">★</span>
+        <span class="star" data-v="5">★</span>
+        <span class="score-badge" id="scoreBadge">-</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn-gen" onclick="generateSock()">🎲 生成新袜子</button>
+        <button class="btn-save" onclick="saveSock()">💾 加入名人堂</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div class="hall-title">👑 彩色袜子名人堂</div>
+    <div class="hall-grid" id="hallGrid">
+      <div class="empty-hall">名人堂空空如也<br>快去生成你的第一双袜子吧！</div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  SOCK PIXEL MAP
+//  精确还原用户给定的像素轮廓，坐标系 16×11
+//
+//  用户给出的形状（每行标注起止列，0-indexed）：
+//
+//  row 0:  col 9-13   (5宽)  ← 袜口 cuff
+//  row 1:  col 9-13   (5宽)  ← 袜口 cuff
+//  row 2:  col 9-13   (5宽)  ← 腿 leg
+//  row 3:  col 9-13   (5宽)  ← 腿 leg
+//  row 4:  col 9-13   (5宽)  ← 腿 leg
+//  row 5:  col 7-14   (8宽)  ← 踝部扩宽 ankle
+//  row 6:  col 3-13   (11宽) + col 14 heel突出  ← 脚跟区
+//  row 7:  col 1-8    (8宽)  ← 脚掌 foot
+//  row 8:  col 0-5    (6宽)  ← 脚掌+脚跟色 foot/heel
+//
+//  每个条目: [c1, c2, zone]
+// ═══════════════════════════════════════════════════════════════════
+
+const SOCK_ROWS = [
+  [9, 13, 'cuff'],   // row 0
+  [9, 13, 'cuff'],   // row 1
+  [9, 13, 'leg'],    // row 2
+  [9, 13, 'leg'],    // row 3
+  [9, 13, 'leg'],    // row 4
+  [7, 14, 'ankle'],  // row 5  — 向两侧扩展，右端多1格作为heel突出起点
+  [3, 14, 'wide'],   // row 6  — 大幅向左扩展，右端col14为heel色
+  [1,  8, 'foot'],   // row 7
+  [0,  5, 'foot'],   // row 8
+];
+
+// 哪些像素是特殊色块
+function zone(r, c) {
+  if (r === 5 && c === 14) return 'heel'; // 踝部右端突出
+  if (r === 6 && c === 14) return 'heel'; // 脚跟右端突出
+  if (r === 6 && c <= 4)   return 'heel'; // 脚跟左侧深色
+  if (r === 7 && c <= 1)   return 'heel'; // 脚掌左端脚跟延续
+  if (r === 8 && c <= 2)   return 'heel'; // 最底部左端脚跟
+  const base = SOCK_ROWS[r];
+  return base ? base[2] : null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  BUILD ALL PIXELS
+// ═══════════════════════════════════════════════════════════════════
+function buildPixels() {
+  const px = [];
+  SOCK_ROWS.forEach(([c1, c2, _], r) => {
+    for (let c = c1; c <= c2; c++) {
+      px.push({ r, c, z: zone(r, c) || (SOCK_ROWS[r] ? SOCK_ROWS[r][2] : 'leg') });
+    }
+  });
+  return px;
+}
+const ALL_PIXELS = buildPixels();
+
+// ═══════════════════════════════════════════════════════════════════
+//  PATTERNS
+// ═══════════════════════════════════════════════════════════════════
+const PATTERNS = [
+  { name:'横条纹',  fn:(c,r,cols)=>cols[Math.floor(r/2)%cols.length] },
+  { name:'竖条纹',  fn:(c,r,cols)=>cols[Math.floor(c/2)%cols.length] },
+  { name:'格子',    fn:(c,r,cols)=>cols[(Math.floor(c/2)+Math.floor(r/2))%cols.length] },
+  { name:'斜线',    fn:(c,r,cols)=>cols[Math.floor((c+r)/3)%cols.length] },
+  { name:'波点',    fn:(c,r,cols)=>{const dx=c%4,dy=r%4;return(dx>=1&&dx<=2&&dy>=1&&dy<=2)?cols[1%cols.length]:cols[0];} },
+  { name:'锯齿',    fn:(c,r,cols)=>{const row=Math.floor(r/3);return cols[Math.floor((row%2===0?c:15-c)/4)%cols.length];} },
+  { name:'色块',    fn:(c,r,cols)=>cols[(Math.floor(c/5)+Math.floor(r/3)*2)%cols.length] },
+  { name:'十字',    fn:(c,r,cols)=>(c%5===2||r%4===1)?cols[1%cols.length]:cols[0] },
+  { name:'菱形',    fn:(c,r,cols)=>{const dx=(c%6)-3,dy=(r%5)-2;return(Math.abs(dx)+Math.abs(dy)<=2)?cols[1%cols.length]:cols[0];} },
+  { name:'像素心',  fn:(c,r,cols)=>{
+      const hx=c%7,hy=r%5;
+      const H=[[1,2,4,5],[0,1,2,3,4,5],[0,1,2,3,4,5],[1,2,3,4],[2,3]];
+      return(hy<H.length&&H[hy].includes(hx))?cols[1%cols.length]:cols[0];
+  }},
+];
+
+// ═══════════════════════════════════════════════════════════════════
+//  PALETTES
+// ═══════════════════════════════════════════════════════════════════
+const PALETTES = [
+  { main:['#ff9f1c','#ff4d6d'],            cuff:'#00bcd4', heel:'#b71c1c' },
+  { main:['#ff7eb3','#ffb347'],            cuff:'#00bcd4', heel:'#880e4f' },
+  { main:['#39ff14','#c060f0'],            cuff:'#ff61d8', heel:'#4a148c' },
+  { main:['#00cfff','#fff200'],            cuff:'#ff4d6d', heel:'#01579b' },
+  { main:['#c060f0','#ff9f1c'],            cuff:'#39ff14', heel:'#4a148c' },
+  { main:['#ff4d6d','#39ff14'],            cuff:'#fff200', heel:'#b71c1c' },
+  { main:['#fff200','#00cfff'],            cuff:'#c060f0', heel:'#f57f17' },
+  { main:['#ff61d8','#7b5ea7'],            cuff:'#39ff14', heel:'#880e4f' },
+  { main:['#3aefff','#ff6b35'],            cuff:'#ff61d8', heel:'#006064' },
+  { main:['#ff9f1c','#7b5ea7','#39ff14'], cuff:'#00bcd4', heel:'#b71c1c' },
+  { main:['#e040fb','#00e5ff'],            cuff:'#ffee58', heel:'#4a148c' },
+  { main:['#69f0ae','#ff6e40'],            cuff:'#651fff', heel:'#1b5e20' },
+];
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDER SVG
+// ═══════════════════════════════════════════════════════════════════
+const NS = 'http://www.w3.org/2000/svg';
+
+function shade(hex, amt) {
+  const n = parseInt(hex.replace('#',''),16);
+  const r = Math.min(255,Math.max(0,(n>>16)+amt));
+  const g = Math.min(255,Math.max(0,((n>>8)&255)+amt));
+  const b = Math.min(255,Math.max(0,(n&255)+amt));
+  return `rgb(${r},${g},${b})`;
+}
+
+function renderSock(g, palette, pattern, emojis) {
+  while (g.firstChild) g.removeChild(g.firstChild);
+
+  ALL_PIXELS.forEach(({ r, c, z }) => {
+    let fill;
+    if (z === 'cuff') {
+      fill = (Math.floor(c/2)+r) % 2 === 0 ? palette.cuff : shade(palette.cuff,-40);
+    } else if (z === 'heel') {
+      fill = palette.heel;
+    } else {
+      fill = pattern.fn(c, r, palette.main);
+    }
+    const rect = document.createElementNS(NS, 'rect');
+    rect.setAttribute('x', c);
+    rect.setAttribute('y', r);
+    rect.setAttribute('width', 1);
+    rect.setAttribute('height', 1);
+    rect.setAttribute('fill', fill);
+    g.appendChild(rect);
+  });
+
+  // Emoji: placed in leg area (rows 2-4, center col ~11) and foot area (row 7, col ~4)
+  const spots = [
+    { x:11, y:3, fs:2.2 },
+    { x:4.5, y:7.5, fs:1.8 },
+  ];
+  (emojis||[]).slice(0,2).forEach((e,i)=>{
+    const s = spots[i];
+    const t = document.createElementNS(NS,'text');
+    t.setAttribute('x', s.x); t.setAttribute('y', s.y);
+    t.setAttribute('font-size', s.fs);
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('dominant-baseline','middle');
+    t.setAttribute('opacity','0.9');
+    t.textContent = e;
+    g.appendChild(t);
+  });
+}
+
+function makeSVGEl(palette, pattern, emojis, w, h) {
+  const svg = document.createElementNS(NS,'svg');
+  svg.setAttribute('viewBox','0 0 16 11');
+  svg.setAttribute('xmlns', NS);
+  svg.style.cssText = `display:block;width:${w}px;height:${h}px;image-rendering:pixelated;border-radius:6px;border:1px solid #e0c0f8;background:#faf0ff`;
+  const g = document.createElementNS(NS,'g');
+  svg.appendChild(g);
+  renderSock(g, palette, pattern, emojis);
+  return svg;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════════════════════
+const ELEM_CATS = {
+  '动物':['🐸','🦄','🐙','🦊','🐱','🐼','🦋','🐢','🦕','🐡','🦜','🐺','🦑','🐬','🦔','🐨','🦩'],
+  '植物':['🌵','🍄','🌸','🌿','🌺','🌻','🎋','🍀','🌴','🌾','🪷'],
+  '食物':['🍕','🍜','🍣','🧁','🌮','🍩','🧋','🍉','🍎','🧀','🍔','🌶️','🍭'],
+  '流行':['👾','💎','🎮','🎸','💫','🌈','✨','🔮','⚡','🎃','👑','🕹️','🛸','🎯','🪩','🤖'],
+};
+const ADJ  = ['传说级','混沌型','彩虹系','深渊版','超进化','量子态','反常识','毒素满格','神秘力量','宇宙级','幻觉大师','次元裂缝','逆时针','薛定谔','频率扭曲'];
+const NOUN = ['毒蘑菇之魂','彩虹危机','袜界BOSS','混沌边界','平行宇宙','深海游荡','星际乱流','次元裂缝','时空褶皱','像素恶魔','光速旋转','维度穿越'];
+const EFFS = ['穿上即可无视交通信号灯','使附近猫咪陷入哲学沉思','导致路人自发鼓掌并不知为何','引发轻微色觉偏移（持续约3小时）','以15%概率吸引外星无线电信号','使袜子主人产生自己会飞的错觉','路过咖啡馆会飘出神秘松饼香气','电梯会主动为你提前开门','使周围人自动说出今天的真心话','加速时间感知让周五来得更快','激活路边鸽子的临时群体意识'];
+const WARNS = ['禁止与正常袜子同时穿','不建议在水族馆附近使用','避免与文件夹正面接触','对格子衬衫用户有强烈排斥反应','雨天效果翻倍慎用','夜间微弱发光不适合秘密行动','使用前请通知家人','不得与纯色裤子同处一室超过2小时','连续穿戴超过24小时可能产生依赖'];
+const RARITIES = ['R','SR','SSR','UR','LR','世界限定','神话级','传说'];
+
+const rnd    = a => a[Math.floor(Math.random()*a.length)];
+const rndInt = (a,b) => a+Math.floor(Math.random()*(b-a+1));
+
+let currentSock=null, currentScore=0, hallItems=[];
+
+function generateSock() {
+  const palette = rnd(PALETTES);
+  const pattern = rnd(PATTERNS);
+  const cats    = Object.keys(ELEM_CATS).sort(()=>Math.random()-0.5).slice(0,rndInt(1,2));
+  const emojis  = cats.map(c=>rnd(ELEM_CATS[c]));
+  const name    = `${rnd(ADJ)}·${rnd(NOUN)}`;
+  const lvl=rndInt(1,99), rar=rnd(RARITIES), eff=rnd(EFFS), warn=rnd(WARNS);
+  const desc=`<span class='warn'>【稀有度 ${rar} ☆${lvl}】</span><br>配方：<b>${pattern.name}</b>纹路 × ${emojis.join('')} 混沌融合体。<br>主动技能：<b>${eff}</b>。<br>副作用：<span class='warn'>${warn}</span>。<br>产地：来自第${rndInt(4,17)}维度袜子工厂，限量1双，全宇宙仅此一份。`;
+
+  currentSock={palette,pattern,emojis,name,desc}; currentScore=0;
+  document.getElementById('sockName').textContent=name;
+  document.getElementById('sockDesc').innerHTML=desc;
+  document.querySelectorAll('.star').forEach(s=>s.classList.remove('lit'));
+  document.getElementById('scoreBadge').textContent='-';
+  renderSock(document.getElementById('sockBody'),palette,pattern,emojis);
+}
+
+document.querySelectorAll('.star').forEach(star=>{
+  star.addEventListener('mouseenter',()=>{
+    const v=+star.dataset.v;
+    document.querySelectorAll('.star').forEach(s=>{s.style.color=+s.dataset.v<=v?'#ffe000':'';});
+  });
+  star.addEventListener('mouseleave',()=>{
+    document.querySelectorAll('.star').forEach(s=>{s.style.color='';s.classList.toggle('lit',+s.dataset.v<=currentScore);});
+  });
+  star.addEventListener('click',()=>{
+    currentScore=+star.dataset.v;
+    document.querySelectorAll('.star').forEach(s=>s.classList.toggle('lit',+s.dataset.v<=currentScore));
+    document.getElementById('scoreBadge').textContent=currentScore+'分';
+  });
+});
+
+function saveSock(){
+  if(!currentSock){showToast('请先生成一双袜子！');return;}
+  if(!currentScore){showToast('请先给袜子打分～');return;}
+  hallItems.unshift({...currentSock,score:currentScore,id:Date.now()});
+  renderHall(); showToast('已加入彩色袜子名人堂！🎉');
+}
+
+function renderHall(){
+  const grid=document.getElementById('hallGrid');
+  if(!hallItems.length){grid.innerHTML='<div class="empty-hall">名人堂空空如也<br>快去生成你的第一双袜子吧！</div>';return;}
+  grid.innerHTML='';
+  hallItems.forEach(item=>{
+    const card=document.createElement('div'); card.className='card';
+    const svg=makeSVGEl(item.palette,item.pattern,item.emojis,96,66);
+    const nm=document.createElement('div'); nm.className='card-name'; nm.textContent=item.name;
+    const sc=document.createElement('div'); sc.className='card-score'; sc.textContent='★'.repeat(item.score);
+    const del=document.createElement('div'); del.className='card-del'; del.textContent='✕';
+    del.onclick=e=>{e.stopPropagation();hallItems=hallItems.filter(x=>x.id!==item.id);renderHall();};
+    card.appendChild(del); card.appendChild(svg); card.appendChild(nm); card.appendChild(sc);
+    card.onclick=()=>{
+      currentSock={...item}; currentScore=item.score;
+      document.getElementById('sockName').textContent=item.name;
+      document.getElementById('sockDesc').innerHTML=item.desc;
+      document.querySelectorAll('.star').forEach(s=>s.classList.toggle('lit',+s.dataset.v<=item.score));
+      document.getElementById('scoreBadge').textContent=item.score+'分';
+      renderSock(document.getElementById('sockBody'),item.palette,item.pattern,item.emojis);
+      document.querySelectorAll('.card').forEach(c=>c.classList.remove('active-card'));
+      card.classList.add('active-card');
+    };
+    grid.appendChild(card);
+  });
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+generateSock();
+</script>
+</body>
+</html>
