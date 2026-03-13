@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星战百科·像素挑战 2.0</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --retro-yellow: #ffe81f;
+            --retro-blue: #2e67f8;
+            --retro-red: #f82e2e;
+            --retro-green: #39FF14;
+            --bg-dark: #000000;
+            --panel-bg: rgba(10, 10, 15, 0.9);
+            --text-main: #f8fafc;
+        }
+
+        body { 
+            font-family: 'VT323', 'PingFang SC', monospace; 
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px),
+                radial-gradient(white, rgba(255,255,255,.1) 1px, transparent 2px);
+            background-size: 550px 550px, 350px 350px;
+            color: var(--text-main); display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; margin: 0; overflow: hidden;
+            image-rendering: pixelated;
+        }
+
+        /* 核心容器 */
+        #quiz-container { 
+            padding: 2rem; width: 90%; max-width: 480px; 
+            position: relative; box-sizing: border-box;
+            border: 4px solid var(--retro-yellow);
+            background: var(--panel-bg);
+            box-shadow: 8px 8px 0px #000;
+        }
+
+        /* --- 动画系统 --- */
+        
+        /* 正确时的扩散射线效果 */
+        @keyframes success-pulse {
+            0% { box-shadow: 0 0 0 0 var(--retro-green); transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { box-shadow: 0 0 20px 10px rgba(57, 255, 20, 0); transform: scale(1); }
+        }
+
+        /* 错误时的剧烈抖动 (Glitch Shake) */
+        @keyframes error-shake {
+            0% { transform: translate(0,0); filter: hue-rotate(0deg); }
+            20% { transform: translate(-10px, 5px); filter: hue-rotate(90deg); }
+            40% { transform: translate(10px, -5px); }
+            60% { transform: translate(-5px, 2px); }
+            80% { transform: translate(5px, -2px); }
+            100% { transform: translate(0,0); filter: hue-rotate(0deg); }
+        }
+
+        .correct-anim { animation: success-pulse 0.5s ease-out; }
+        .screen-shake { animation: error-shake 0.3s linear; }
+
+        /* 基础样式保持复古 */
+        .status-header { display: flex; justify-content: space-between; border-bottom: 2px solid var(--retro-blue); padding-bottom: 5px; margin-bottom: 1rem; }
+        .score-tag { color: var(--retro-yellow); font-size: 1.2rem; }
+        .img-box { width: 100%; height: 160px; background: #111; margin-bottom: 1rem; border: 2px solid #444; overflow: hidden; }
+        .img-box img { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; }
+        
+        .question-text { font-size: 1.4rem; min-height: 3.5rem; margin-bottom: 1rem; line-height: 1.2; }
+        .options { display: grid; gap: 8px; }
+        
+        .option-btn { 
+            background: #111; border: 3px solid #444; color: #aaa; 
+            padding: 10px; cursor: pointer; font-family: 'VT323'; font-size: 1.2rem;
+            text-align: left; position: relative;
+        }
+
+        .option-btn:hover:not(:disabled) { border-color: var(--retro-blue); color: #fff; background: #222; }
+
+        /* 状态类 */
+        .btn-correct { background: var(--retro-green) !important; color: #000 !important; border-color: #fff !important; }
+        .btn-wrong { background: var(--retro-red) !important; color: #fff !important; border-color: #fff !important; }
+        
+        #combo-wrap {
+            position: absolute; top: -20px; right: 10px; background: var(--retro-red);
+            padding: 2px 8px; border: 2px solid #fff; font-weight: bold;
+            animation: blink 0.4s infinite; display: none;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .hidden { display: none; }
+        .score-num { font-size: 4rem; color: var(--retro-yellow); margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+<div id="quiz-container">
+    <div id="combo-wrap">COMBO x<span id="combo-num">0</span></div>
+
+    <div id="start-screen" style="text-align: center;">
+        <h1 style="color:var(--retro-yellow); font-size: 3rem; margin: 0;">百科全书</h1>
+        <p style="color:#666; margin-bottom: 2rem;">RETR0_OS VER 2.0.26</p>
+        <button class="option-btn" style="width:100%; text-align:center; border-color:var(--retro-yellow); color:var(--retro-yellow);" onclick="initGame()">[ 初始化系统 ]</button>
+    </div>
+
+    <div id="game-screen" class="hidden">
+        <div class="status-header">
+            <span id="cat-label">READY...</span>
+            <div class="score-tag">SCORE:<span id="live-score">00000</span></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; color:#444; font-size:0.9rem; margin-bottom:5px;">
+            <span id="prog-label">0/50</span>
+            <span>TIME: <span id="timer-text" style="color:var(--retro-red)">15</span>s</span>
+        </div>
+        <div class="img-box"><img id="q-img" src=""></div>
+        <div class="question-text" id="q-text">数据载入中...</div>
+        <div class="options" id="opt-box"></div>
+    </div>
+
+    <div id="result-screen" class="hidden" style="text-align: center;">
+        <h2 style="color: var(--retro-blue);">任务结算报告</h2>
+        <div class="score-num" id="final-score">0</div>
+        <p id="rank-msg" style="color: #fff; min-height: 3rem; font-size: 1.2rem;"></p>
+        <button class="option-btn" style="width:100%; text-align:center;" onclick="location.reload()">[ 重新载入 ]</button>
+    </div>
+</div>
+
+<script>
+// 50道全新硬核百科题库
+const newDb = [
+    { q: "‘岁寒三友’是指松、竹和什么？", a: ["兰", "梅", "菊"], c: 1, cat: "文化", img: "https://images.unsplash.com/photo-1517400508447-f8dd518b86db?w=400" },
+    { q: "世界上最古老的运河是？", a: ["苏伊士运河", "巴拿马运河", "灵渠"], c: 2, cat: "历史", img: "https://images.unsplash.com/photo-1541829070764-84a7d30dee62?w=400" },
+    { q: "正常成年人身上有多少块骨头？", a: ["204", "206", "208"], c: 1, cat: "医学", img: "https://images.unsplash.com/photo-1530210124550-912dc1381cb8?w=400" },
+    { q: "下列哪个城市被称为‘日光城’？", a: ["拉萨", "昆明", "三亚"], c: 0, cat: "地理", img: "https://images.unsplash.com/photo-1531233075306-382a3928e085?w=400" },
+    { q: "‘草船借箭’是诸葛亮利用了哪种气候现象？", a: ["暴雨", "大雾", "东南风"], c: 1, cat: "文学", img: "https://images.unsplash.com/photo-1534067783941-51c9c23ecefd?w=400" },
+    { q: "第一个进入太空的人是谁？", a: ["阿姆斯特朗", "加加林", "杨利伟"], c: 1, cat: "天文", img: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=400" },
+    { q: "被称为‘液体黄金’的植物油是？", a: ["橄榄油", "花生油", "大豆油"], c: 0, cat: "常识", img: "https://images.unsplash.com/photo-1474979266404-7eaacbadcbff?w=400" },
+    { q: "企鹅主要分布在地球的哪个位置？", a: ["北极", "赤道", "南极"], c: 2, cat: "生物", img: "https://images.unsplash.com/photo-1551989137-02204555e1d7?w=400" },
+    { q: "莫扎特是哪国的作曲家？", a: ["德国", "奥地利", "意大利"], c: 1, cat: "艺术", img: "https://images.unsplash.com/photo-1507838595010-bb4c8789938d?w=400" },
+    { q: "电脑的‘大脑’CPU全称是？", a: ["中央处理器", "图形处理器", "内存条"], c: 0, cat: "科技", img: "https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=400" },
+    { q: "金字塔主要位于哪个国家？", a: ["伊拉克", "希腊", "埃及"], c: 2, cat: "历史", img: "https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?w=400" },
+    { q: "下列不属于太阳系八大行星的是？", a: ["海王星", "金星", "冥王星"], c: 2, cat: "天文", img: "https://images.unsplash.com/photo-1614732414444-096e5f1122d5?w=400" },
+    { q: "著名的‘思想者’雕塑是谁的作品？", a: ["米开朗基罗", "罗丹", "达芬奇"], c: 1, cat: "艺术", img: "https://images.unsplash.com/photo-1549490349-8643362247b5?w=400" },
+    { q: "中国四大发明不包括？", a: ["地动仪", "造纸术", "火药"], c: 0, cat: "文化", img: "https://images.unsplash.com/photo-1599422314077-f4dfdaa4cd09?w=400" },
+    { q: "人体最大的器官是？", a: ["肝脏", "皮肤", "大脑"], c: 1, cat: "医学", img: "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=400" },
+    { q: "蝙蝠属于哪一类动物？", a: ["鸟类", "爬行类", "哺乳类"], c: 2, cat: "生物", img: "https://images.unsplash.com/photo-1533907650686-70576141c030?w=400" },
+    { q: "‘白色污染’主要指的是？", a: ["废纸", "废塑料", "重金属"], c: 1, cat: "环保", img: "https://images.unsplash.com/photo-1526951521990-620dc14c214b?w=400" },
+    { q: "‘韦编三绝’这个典故与谁有关？", a: ["孔子", "老子", "庄子"], c: 0, cat: "文学", img: "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=400" },
+    { q: "一打(a dozen)是指多少个？", a: ["10", "12", "14"], c: 1, cat: "常识", img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400" },
+    { q: "地球上含盐量最高的海域是？", a: ["红海", "黑海", "死海"], c: 2, cat: "地理", img: "https://images.unsplash.com/photo-1552530182-3d778d10b719?w=400" },
+    { q: "第一个获得诺贝尔奖的中国籍作家是？", a: ["鲁迅", "莫言", "刘慈欣"], c: 1, cat: "文化", img: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400" },
+    { q: "‘尤里卡’是谁在浴缸里喊出的？", a: ["牛顿", "爱因斯坦", "阿基米德"], c: 2, cat: "历史", img: "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=400" },
+    { q: "马赫是衡量什么的单位？", a: ["亮度", "声速倍数", "电量"], c: 1, cat: "物理", img: "https://images.unsplash.com/photo-1517976487492-5750f3195933?w=400" },
+    { q: "《蒙娜丽莎》现存于哪个博物馆？", a: ["卢浮宫", "大英博物馆", "故宫"], c: 0, cat: "艺术", img: "https://images.unsplash.com/photo-1544273677-c433136021d0?w=400" },
+    { q: "唯一生长在水里的森林是？", a: ["雨林", "红树林", "白桦林"], c: 1, cat: "生物", img: "https://images.unsplash.com/photo-1440688807730-73e4e2169fb8?w=400" },
+    { q: "哪种血型的人被称为‘万能输血者’？", a: ["AB型", "A型", "O型"], c: 2, cat: "医学", img: "https://images.unsplash.com/photo-1615461066159-fea0960485d5?w=400" },
+    { q: "人类历史上第一个人工合成的纤维是？", a: ["尼龙", "涤纶", "氨纶"], c: 0, cat: "科技", img: "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=400" },
+    { q: "‘床前明月光’的床在古意中指？", a: ["睡觉的床", "井栏", "窗户"], c: 1, cat: "文学", img: "https://images.unsplash.com/photo-1522030239044-12af004f1cf2?w=400" },
+    { q: "世界上最小的鸟是？", a: ["麻雀", "蜂鸟", "翠鸟"], c: 1, cat: "生物", img: "https://images.unsplash.com/photo-1452570053594-1b985d6ea890?w=400" },
+    { q: "国际象棋中哪种棋子只能斜着走？", a: ["车", "主教(象)", "马"], c: 1, cat: "常识", img: "https://images.unsplash.com/photo-1529699211952-734e80c4d42b?w=400" },
+    { q: "《清明上河图》描绘的是哪个朝代的景象？", a: ["唐朝", "北宋", "明朝"], c: 1, cat: "历史", img: "https://images.unsplash.com/photo-1569437061241-a848be43cc82?w=400" },
+    { q: "大气层中能吸收紫外线的是？", a: ["氧气", "臭氧层", "二氧化碳"], c: 1, cat: "地理", img: "https://images.unsplash.com/photo-1534067783941-51c9c23ecefd?w=400" },
+    { q: "‘知识就是力量’是谁的名言？", a: ["培根", "笛卡尔", "苏格拉底"], c: 0, cat: "文化", img: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=400" },
+    { q: "奥林匹克旗帜上的五环有几种颜色？", a: ["4种", "5种", "6种"], c: 1, cat: "常识", img: "https://images.unsplash.com/photo-1521412644187-c49fa049e84d?w=400" },
+    { q: "下列哪个不是计算机编程语言？", a: ["Python", "Java", "HDMI"], c: 2, cat: "科技", img: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=400" },
+    { q: "著名的维纳斯雕像缺失了身体哪个部位？", a: ["双腿", "双臂", "头部"], c: 1, cat: "艺术", img: "https://images.unsplash.com/photo-1549490349-8643362247b5?w=400" },
+    { q: "‘举杯邀明月’的下一句是？", a: ["对影成三人", "低头思故乡", "拔剑四顾心茫然"], c: 0, cat: "文学", img: "https://images.unsplash.com/photo-1498036882173-b41c28a8ba34?w=400" },
+    { q: "世界上最深的海沟是？", a: ["波多黎各", "马里亚纳", "汤加"], c: 1, cat: "地理", img: "https://images.unsplash.com/photo-1518156677180-95a2893f3e9f?w=400" },
+    { q: "下列属于长寿象征的动物是？", a: ["鹤", "鹰", "鸽"], c: 0, cat: "文化", img: "https://images.unsplash.com/photo-1510672981848-a1c4f1cb5ccf?w=400" },
+    { q: "光在真空中的传播速度约为每秒？", a: ["30万公里", "20万公里", "10万公里"], c: 0, cat: "物理", img: "https://images.unsplash.com/photo-1632733711679-5292d6863670?w=400" },
+    { q: "‘岁不寒无以知松柏’出自哪部作品？", a: ["论语", "史记", "荀子"], c: 2, cat: "文学", img: "https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=400" },
+    { q: "哪种乐器被称为‘乐器之王’？", a: ["小提琴", "钢琴", "萨克斯"], c: 1, cat: "艺术", img: "https://images.unsplash.com/photo-1520527057854-436c52b4dc80?w=400" },
+    { q: "地球自转一周大约需要多长时间？", a: ["24小时", "365天", "12小时"], c: 0, cat: "天文", img: "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=400" },
+    { q: "下列哪种植物是沙漠中的‘储水器’？", a: ["胡杨", "仙人掌", "红柳"], c: 1, cat: "生物", img: "https://images.unsplash.com/photo-1521503862198-2ae9a997bbc9?w=400" },
+    { q: "诺贝尔奖不设下列哪个奖项？", a: ["文学奖", "和平奖", "数学奖"], c: 2, cat: "常识", img: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400" },
+    { q: "‘纸上得来终觉浅’下一句是？", a: ["绝知此事要躬行", "要留清白在人间", "少壮不努力"], c: 0, cat: "文学", img: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400" },
+    { q: "‘草堂’是哪位诗人的故居标志？", a: ["李白", "杜甫", "白居易"], c: 1, cat: "文学", img: "https://images.unsplash.com/photo-1582650625119-3a31f8fa2699?w=400" },
+    { q: "电风扇扇出的风是凉的吗？", a: ["是", "不是", "看气温"], c: 1, cat: "物理", img: "https://images.unsplash.com/photo-1541011504938-f9b18361b782?w=400" },
+    { q: "著名的‘大笨钟’位于哪个城市？", a: ["巴黎", "伦敦", "纽约"], c: 1, cat: "地理", img: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400" },
+    { q: "互联网之父是？", a: ["温顿·瑟夫", "比尔·盖茨", "乔布斯"], c: 0, cat: "科技", img: "https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=400" }
+];
+
+let quizDb = [...newDb];
+let cur = 0, totalScore = 0, combo = 0, lock = false, timer, timeLeft = 15;
+
+function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
+function initGame() {
+    shuffle(quizDb);
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('game-screen').classList.remove('hidden');
+    render();
+}
+
+function render() {
+    if(cur >= quizDb.length) return showResult();
+    lock = false; timeLeft = 15;
+    const data = quizDb[cur];
+    
+    document.getElementById('q-text').innerText = data.q;
+    document.getElementById('cat-label').innerText = `> ${data.cat}_UNIT`;
+    document.getElementById('prog-label').innerText = `SECT_${cur + 1}/${quizDb.length}`;
+    document.getElementById('q-img').src = data.img;
+    document.getElementById('timer-text').innerText = timeLeft;
+
+    const box = document.getElementById('opt-box');
+    box.innerHTML = '';
+    data.a.forEach((t, i) => {
+        const b = document.createElement('button');
+        b.className = 'option-btn';
+        b.innerText = `[ ${t} ]`;
+        b.onclick = () => check(i, b);
+        box.appendChild(b);
+    });
+
+    clearInterval(timer);
+    timer = setInterval(() => {
+        timeLeft--;
+        document.getElementById('timer-text').innerText = timeLeft;
+        if(timeLeft <= 0) { clearInterval(timer); check(-1, null); }
+    }, 1000);
+}
+
+function check(idx, btn) {
+    if(lock) return; lock = true;
+    clearInterval(timer);
+    const correctIdx = quizDb[cur].c;
+    const container = document.getElementById('quiz-container');
+    const btns = document.querySelectorAll('.option-btn');
+    
+    if(idx === correctIdx) {
+        // 正确逻辑
+        combo++;
+        btn.classList.add('btn-correct', 'correct-anim');
+        totalScore += (10 + (combo * 2) + timeLeft);
+        updateCombo();
+    } else {
+        // 错误逻辑
+        combo = 0;
+        updateCombo();
+        if(btn) btn.classList.add('btn-wrong');
+        btns[correctIdx].classList.add('btn-correct');
+        // 屏幕抖动特效
+        container.classList.add('screen-shake');
+        setTimeout(() => container.classList.remove('screen-shake'), 400);
+    }
+
+    document.getElementById('live-score').innerText = totalScore.toString().padStart(5, '0');
+    setTimeout(() => { cur++; render(); }, 1000);
+}
+
+function updateCombo() {
+    const wrap = document.getElementById('combo-wrap');
+    if(combo > 1) {
+        wrap.style.display = 'block';
+        document.getElementById('combo-num').innerText = combo;
+    } else {
+        wrap.style.display = 'none';
+    }
+}
+
+function showResult() {
+    document.getElementById('game-screen').classList.add('hidden');
+    document.getElementById('result-screen').classList.remove('hidden');
+    document.getElementById('final-score').innerText = totalScore;
+    
+    let rank = totalScore > 1000 ? "绝地大师：知识之光与你同在！" : 
+               totalScore > 600 ? "共和国指挥官：卓越的判断力。" : 
+               "塔图因学徒：原力尚未觉醒。";
+    document.getElementById('rank-msg').innerText = rank;
+}
+</script>
+</body>
+</html>
