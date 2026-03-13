@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>25-35岁青年跨界百科挑战</title>
+    <style>
+        :root {
+            --primary: #8b5cf6; --bg: #030712; --card: rgba(30, 41, 59, 0.7);
+            --text: #f8fafc; --success: #10b981; --error: #ef4444;
+        }
+        body { 
+            font-family: 'PingFang SC', system-ui, sans-serif; 
+            background: radial-gradient(circle at top right, #1e1b4b, #030712);
+            color: var(--text); display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; margin: 0; overflow-x: hidden;
+        }
+        #quiz-container { 
+            background: var(--card); backdrop-filter: blur(12px); padding: 2rem; 
+            border-radius: 2rem; width: 90%; max-width: 500px; 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);
+        }
+        .img-box { 
+            width: 100%; height: 200px; background: #334155; border-radius: 1.2rem; 
+            margin-bottom: 1.5rem; overflow: hidden; position: relative;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .img-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
+        .upload-overlay {
+            position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.6);
+            padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; cursor: pointer; border: 1px solid #ffffff44;
+        }
+        .progress-bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin: 1rem 0; }
+        #progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); shadow: 0 0 10px var(--primary); }
+        .question-text { font-size: 1.25rem; font-weight: 600; line-height: 1.5; margin-bottom: 1.5rem; height: 4rem; }
+        .options { display: grid; gap: 0.8rem; }
+        .option-btn { 
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); 
+            color: white; padding: 1rem; border-radius: 1rem; cursor: pointer; 
+            text-align: left; transition: 0.2s; font-size: 1rem;
+        }
+        .option-btn:hover { background: rgba(255,255,255,0.15); border-color: var(--primary); }
+        .correct { background: var(--success) !important; border-color: #fff; transform: scale(1.02); }
+        .wrong { background: var(--error) !important; opacity: 0.8; }
+        .hidden { display: none; }
+        .score-num { font-size: 5rem; font-weight: 900; background: linear-gradient(to bottom, #a78bfa, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    </style>
+</head>
+<body>
+
+<div id="quiz-container">
+    <div id="start-screen" style="text-align: center;">
+        <h1 style="margin-bottom: 0.5rem;">百科挑战</h1>
+        <button class="option-btn" style="width: 100%; text-align: center; background: var(--primary);" onclick="initGame()">开始挑战 (50题)</button>
+    </div>
+
+    <div id="game-screen" class="hidden">
+        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8;">
+            <span id="cat-label">分类</span>
+            <span id="prog-label">1/50</span>
+        </div>
+        <div class="progress-bar"><div id="progress-fill"></div></div>
+        
+        <div class="img-box" id="img-display">
+            <img id="q-img" src="" alt="题目图片">
+            <label class="upload-overlay">
+                📷 换图
+                <input type="file" id="img-upload" hidden accept="image/*">
+            </label>
+        </div>
+
+        <div class="question-text" id="q-text">加载中...</div>
+        <div class="options" id="opt-box"></div>
+    </div>
+
+    <div id="result-screen" class="hidden" style="text-align: center;">
+        <h2>得分报告</h2>
+        <div class="score-num" id="final-score">0</div>
+        <p id="rank-msg" style="font-size: 1.2rem;"></p>
+        <button class="option-btn" style="margin-top: 2rem; width: 100%; text-align: center;" onclick="location.reload()">重新开启</button>
+    </div>
+</div>
+
+<script>
+    // 题目数据库
+  // --- 完整50题：独立图片链接版 ---
+const db = [
+    // --- 生物与人体 (1-10) ---
+    { q: "婴儿出生时约有300块骨头，成年后约为？", a: ["206块", "250块", "180块"], c: 0, cat: "生物", img: "https://images.unsplash.com/photo-1530210124550-912dc1381cb8?w=600" },
+    { q: "人体最大的器官是什么？", a: ["肝脏", "皮肤", "小肠"], c: 1, cat: "生物", img: "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=600" },
+    { q: "DNA双螺旋结构中，与腺嘌呤(A)配对的是？", a: ["胞嘧啶", "鸟嘌呤", "胸腺嘧啶"], c: 2, cat: "生物", img: "https://images.unsplash.com/photo-1530026405186-ed1f139313f8?w=600" },
+    { q: "哪种血型被称为“万能受血者”？", a: ["O型", "AB型", "B型"], c: 1, cat: "生物", img: "https://images.unsplash.com/photo-1615461066159-fea0960485d5?w=600" },
+    { q: "大脑中负责记忆和导航的部位是？", a: ["海马体", "杏仁核", "下丘脑"], c: 0, cat: "生物", img: "https://images.unsplash.com/photo-1559757175-5700dde675bc?w=600" },
+    { q: "人体内最坚硬的物质是？", a: ["骨骼", "牙釉质", "指甲"], c: 1, cat: "生物", img: "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=600" },
+    { q: "成年人全身血液循环一周大约需要多久？", a: ["20秒", "1分钟", "5分钟"], c: 1, cat: "生物", img: "https://images.unsplash.com/photo-1579152123613-b635c3450e18?w=600" },
+    { q: "细胞的“动力工厂”通常指？", a: ["细胞核", "线粒体", "溶酶体"], c: 1, cat: "生物", img: "https://images.unsplash.com/photo-1530026186672-2cd00ffc50fe?w=600" },
+    { q: "阳光照射皮肤主要合成哪种维生素？", a: ["维生素A", "维生素C", "维生素D"], c: 2, cat: "生物", img: "https://images.unsplash.com/photo-1547149617-60363290dd72?w=600" },
+    { q: "唯一能产生乳汁的动物类别是？", a: ["爬行动物", "哺乳动物", "鸟类"], c: 1, cat: "生物", img: "https://images.unsplash.com/photo-1557008075-7f2c5efa4cfd?w=600" },
+
+    // --- 物理与化学 (11-20) ---
+    { q: "绝对零度对应的摄氏度是多少？", a: ["0°C", "-273.15°C", "-100°C"], c: 1, cat: "物理", img: "https://images.unsplash.com/photo-1516339901600-2e3a82dc50d4?w=600" },
+    { q: "周期表中原子序数为1的元素是？", a: ["氦", "锂", "氢"], c: 2, cat: "化学", img: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600" },
+    { q: "质能方程 E=mc² 中的 c 代表？", a: ["质量", "光速", "能量"], c: 1, cat: "物理", img: "https://images.unsplash.com/photo-1632733711679-5292d6863670?w=600" },
+    { q: "声音在真空中能传播吗？", a: ["能", "不能", "取决于距离"], c: 1, cat: "物理", img: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600" },
+    { q: "常温下唯一的液态金属是？", a: ["铝", "汞", "溴"], c: 1, cat: "化学", img: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=600" },
+    { q: "“薛定谔的猫”解释量子力学的？", a: ["纠缠", "叠加态", "跃迁"], c: 1, cat: "物理", img: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600" },
+    { q: "铅笔芯的主要成分是？", a: ["铅", "石墨", "木炭"], c: 1, cat: "化学", img: "https://images.unsplash.com/photo-1519331584341-c6729583733a?w=600" },
+    { q: "水的化学分子式是？", a: ["HO2", "H2O", "H2O2"], c: 1, cat: "化学", img: "https://images.unsplash.com/photo-1548839140-29a742111f47?w=600" },
+    { q: "万有引力的提出者是？", a: ["牛顿", "爱因斯坦", "霍金"], c: 0, cat: "物理", img: "https://images.unsplash.com/photo-1614728263952-84ea256f9679?w=600" },
+    { q: "钻石主要由哪种元素组成？", a: ["硅", "碳", "氧"], c: 1, cat: "化学", img: "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?w=600" },
+
+    // --- 天文与地理 (21-30) ---
+    { q: "太阳系最大的行星是？", a: ["土星", "木星", "海王星"], c: 1, cat: "天文", img: "https://images.unsplash.com/photo-1614732414444-096e5f1122d5?w=600" },
+    { q: "除太阳外离地球最近的恒星是？", a: ["北极星", "比邻星", "天狼星"], c: 1, cat: "天文", img: "https://images.unsplash.com/photo-1464802686167-b939a67e06a1?w=600" },
+    { q: "马里亚纳海沟位于哪个洋？", a: ["大西洋", "太平洋", "印度洋"], c: 1, cat: "地理", img: "https://images.unsplash.com/photo-1518156677180-95a2893f3e9f?w=600" },
+    { q: "“光年”是衡量什么的单位？", a: ["时间", "距离", "速度"], c: 1, cat: "天文", img: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=600" },
+    { q: "大气中含量最高的气体是？", a: ["氧气", "二氧化碳", "氮气"], c: 2, cat: "天文", img: "https://images.unsplash.com/photo-1534067783941-51c9c23ecefd?w=600" },
+    { q: "赤道没有穿过哪个洲？", a: ["非洲", "亚洲", "欧洲"], c: 2, cat: "地理", img: "https://images.unsplash.com/photo-1521295121783-8a321d551ad2?w=600" },
+    { q: "月球绕地球一圈约为？", a: ["24小时", "27.3天", "365天"], c: 1, cat: "天文", img: "https://images.unsplash.com/photo-1522030239044-12af004f1cf2?w=600" },
+    { q: "地壳中含量最多的金属是？", a: ["铁", "铝", "铜"], c: 1, cat: "地理", img: "https://images.unsplash.com/photo-1518391846015-55a9cc003b25?w=600" },
+    { q: "地球上跨经度最广的地区是？", a: ["赤道", "南极点/北极点", "格林威治"], c: 1, cat: "地理", img: "https://images.unsplash.com/photo-1510533339891-9948d7ccdd04?w=600" },
+    { q: "冥王星现在的身份是？", a: ["行星", "矮行星", "卫星"], c: 1, cat: "天文", img: "https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?w=600" },
+
+    // --- 流行文化 (31-40) ---
+    { q: "钢铁侠的真实姓名是？", a: ["布鲁斯·韦恩", "托尼·斯塔克", "史蒂夫"], c: 1, cat: "流行", img: "https://images.unsplash.com/photo-1626278664285-f7c8a8d07f23?w=600" },
+    { q: "MBTI中“I”代表？", a: ["直觉", "内向", "判断"], c: 1, cat: "流行", img: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=600" },
+    { q: "伏地魔的真名是？", a: ["汤姆·里德尔", "斯内普", "邓布利多"], c: 0, cat: "流行", img: "https://images.unsplash.com/photo-1551269901-5c5e14c25df7?w=600" },
+    { q: "游戏术语“NPC”指？", a: ["非玩家角色", "国家中心", "新代码"], c: 0, cat: "流行", img: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600" },
+    { q: "开创波普艺术画玛丽莲梦露的是？", a: ["毕加索", "沃霍尔", "达利"], c: 1, cat: "流行", img: "https://images.unsplash.com/photo-1577720580479-7d839d829c73?w=600" },
+    { q: "赛博朋克的核心是？", a: ["高科技低生活", "蒸汽", "魔法"], c: 0, cat: "流行", img: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600" },
+    { q: "比特币创始人是？", a: ["中本聪", "马斯克", "贝索斯"], c: 0, cat: "流行", img: "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?w=600" },
+    { q: "最著名的水管工英雄是？", a: ["林克", "马力欧", "皮卡丘"], c: 1, cat: "流行", img: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?w=600" },
+    { q: "《寄生虫》是哪国电影？", a: ["中国", "韩国", "日本"], c: 1, cat: "流行", img: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600" },
+    { q: "TikTok 的母公司是？", a: ["腾讯", "字节跳动", "百度"], c: 1, cat: "流行", img: "https://images.unsplash.com/photo-1611605698335-8b1569810432?w=600" },
+
+    // --- 常识与逻辑 (41-50) ---
+    { q: "扑克牌（不含王）有多少张？", a: ["52张", "54张", "48张"], c: 0, cat: "常识", img: "https://images.unsplash.com/photo-1541272045293-875693006d6e?w=600" },
+    { q: "奥林匹克五环黄环代表？", a: ["欧洲", "亚洲", "非洲"], c: 1, cat: "常识", img: "https://images.unsplash.com/photo-1521412644187-c49fa049e84d?w=600" },
+    { q: "两河流域是指哪两河？", a: ["底格里斯/幼发拉底", "黄河/长江", "尼罗河"], c: 0, cat: "常识", img: "https://images.unsplash.com/photo-1519817650390-64a93db51149?w=600" },
+    { q: "计算机之父是？", a: ["图灵", "诺贝尔", "特斯拉"], c: 0, cat: "常识", img: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600" },
+    { q: "独角兽公司指估值超过？", a: ["1亿美金", "10亿美金", "100亿"], c: 1, cat: "常识", img: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600" },
+    { q: "香槟产自哪个国家？", a: ["法国", "意大利", "西班牙"], c: 0, cat: "常识", img: "https://images.unsplash.com/photo-1594498653385-d5172b532c00?w=600" },
+    { q: "天空是蓝色的主因是？", a: ["折射", "散射", "反射"], c: 1, cat: "常识", img: "https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?w=600" },
+    { q: "第一性原理是谁提出的？", a: ["亚里士多德", "孔子", "康德"], c: 0, cat: "常识", img: "https://images.unsplash.com/photo-1455156218388-5e61b526818b?w=600" },
+    { q: "白色污染指哪种废弃物？", a: ["纸张", "塑料", "金属"], c: 1, cat: "常识", img: "https://images.unsplash.com/photo-1526951521990-620dc14c214b?w=600" },
+    { q: "世界第一长河是？", a: ["尼罗河", "亚马逊河", "长江"], c: 0, cat: "常识", img: "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=600" }
+];
+
+// --- 增强：如果 Unsplash 图片加载失败，备用分类搜索功能 ---
+function getBackupImage(category) {
+    const keywords = {
+        "生物": "nature,biology",
+        "物理": "physics,technology",
+        "化学": "chemistry,lab",
+        "天文": "space,galaxy",
+        "地理": "earth,mountain",
+        "流行": "pop-culture,cyberpunk",
+        "常识": "knowledge,library"
+    };
+    const key = keywords[category] || "abstract";
+    // 返回一个随机的分类图
+    return `https://source.unsplash.com/featured/600x400?${key}&sig=${Math.random()}`;
+}
+    while(db.length < 50) {
+        db.push({...db[db.length % 10], q: db[db.length % 10].q + " (复习题)"});
+    }
+
+    let cur = 0; let score = 0; let lock = false;
+
+    function initGame() {
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('game-screen').classList.remove('hidden');
+        render();
+    }
+
+    function render() {
+        lock = false;
+        const data = db[cur];
+        document.getElementById('q-text').innerText = data.q;
+        document.getElementById('cat-label').innerText = `【${data.cat}】`;
+        document.getElementById('prog-label').innerText = `${cur + 1} / 50`;
+        document.getElementById('progress-fill').style.width = `${((cur + 1) / 50) * 100}%`;
+        document.getElementById('q-img').src = data.img;
+
+        const box = document.getElementById('opt-box');
+        box.innerHTML = '';
+        data.a.forEach((t, i) => {
+            const b = document.createElement('button');
+            b.className = 'option-btn';
+            b.innerText = t;
+            b.onclick = () => check(i, b);
+            box.appendChild(b);
+        });
+    }
+
+    function check(idx, btn) {
+        if(lock) return; lock = true;
+        const correct = db[cur].c;
+        const btns = document.querySelectorAll('.option-btn');
+        if(idx === correct) {
+            btn.classList.add('correct');
+            score += 2; // 每题2分，满分100
+        } else {
+            btn.classList.add('wrong');
+            btns[correct].classList.add('correct');
+        }
+        setTimeout(() => {
+            cur++;
+            if(cur < 50) render();
+            else showResult();
+        }, 1200);
+    }
+
+    function showResult() {
+        document.getElementById('game-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.remove('hidden');
+        document.getElementById('final-score').innerText = score;
+        const msg = score > 80 ? "脑洞天花板！" : (score > 60 ? "知识中坚力量" : "还需要多充电哦");
+        document.getElementById('rank-msg').innerText = msg;
+    }
+
+    // 图片上传实时预览逻辑
+    document.getElementById('img-upload').onchange = function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                document.getElementById('q-img').src = ev.target.result;
+                db[cur].img = ev.target.result; // 保存当前题目的图
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+</script>
+</body>
+</html>
