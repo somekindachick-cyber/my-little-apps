@@ -6,15 +6,26 @@
 <title>彩色袜子生成器</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
 
-<!-- ══════════════════════════════════════════════
-  🔧 FIREBASE CONFIG — 替换成你自己的配置
-  步骤：
-  1. 访问 https://console.firebase.google.com
-  2. 新建项目（免费 Spark 计划即可）
-  3. 左侧 Firestore Database → 创建数据库（测试模式）
-  4. 项目设置 → 你的应用 → 添加Web应用 → 复制firebaseConfig
-  5. 替换下方 firebaseConfig 对象
-══════════════════════════════════════════════ -->
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyBJk29AcZoo6E1R7rKSbDSGrPThQ1f7gJ4",
+    authDomain: "colorful-sock.firebaseapp.com",
+    databaseURL: "https://colorful-sock-default-rtdb.firebaseio.com",
+    projectId: "colorful-sock",
+    storageBucket: "colorful-sock.firebasestorage.app",
+    messagingSenderId: "626843839143",
+    appId: "1:626843839143:web:c7733662dad5fbcbf20982"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+</script>
 
 <style>
 *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
