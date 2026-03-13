@@ -7,14 +7,14 @@
   <style>
     :root {
       --bg: #f6f3ee;
-      --card: rgba(255,255,255,0.72);
+      --card: rgba(255, 255, 255, 0.74);
       --text: #1d1d1f;
       --muted: #6b6b6f;
-      --line: rgba(0,0,0,0.08);
+      --line: rgba(0, 0, 0, 0.08);
       --accent: #1f6fff;
-      --accent-soft: rgba(31,111,255,0.08);
-      --shadow: 0 10px 30px rgba(0,0,0,0.06);
-      --radius: 22px;
+      --accent-soft: rgba(31, 111, 255, 0.08);
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+      --radius: 24px;
       --maxw: 1120px;
     }
 
@@ -41,13 +41,13 @@
     .wrap {
       max-width: var(--maxw);
       margin: 0 auto;
-      padding: 48px 24px 80px;
+      padding: 48px 24px 88px;
     }
 
     .hero {
-      padding: 28px 0 36px;
+      padding: 28px 0 34px;
       border-bottom: 1px solid var(--line);
-      margin-bottom: 28px;
+      margin-bottom: 30px;
     }
 
     .eyebrow {
@@ -59,7 +59,7 @@
       padding: 8px 12px;
       border: 1px solid var(--line);
       border-radius: 999px;
-      background: rgba(255,255,255,0.5);
+      background: rgba(255, 255, 255, 0.52);
       backdrop-filter: blur(8px);
       margin-bottom: 18px;
     }
@@ -74,7 +74,7 @@
 
     .subtitle {
       margin-top: 18px;
-      max-width: 760px;
+      max-width: 780px;
       font-size: 20px;
       line-height: 1.7;
       color: var(--muted);
@@ -109,7 +109,7 @@
       align-items: end;
       justify-content: space-between;
       gap: 16px;
-      margin: 28px 0 20px;
+      margin: 34px 0 20px;
     }
 
     .section-head h2 {
@@ -133,11 +133,11 @@
       position: relative;
       display: flex;
       flex-direction: column;
-      min-height: 220px;
+      min-height: 232px;
       padding: 22px;
       border-radius: var(--radius);
       background: var(--card);
-      border: 1px solid rgba(255,255,255,0.55);
+      border: 1px solid rgba(255,255,255,0.56);
       box-shadow: var(--shadow);
       backdrop-filter: blur(14px);
       transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
@@ -153,10 +153,10 @@
     .card::after {
       content: "";
       position: absolute;
-      right: -30px;
-      top: -30px;
-      width: 120px;
-      height: 120px;
+      right: -26px;
+      top: -26px;
+      width: 118px;
+      height: 118px;
       border-radius: 50%;
       background: radial-gradient(circle, rgba(31,111,255,0.10), transparent 68%);
       pointer-events: none;
@@ -221,6 +221,7 @@
       font-size: 14px;
       font-weight: 700;
       transition: all 0.2s ease;
+      white-space: nowrap;
     }
 
     .btn-primary {
@@ -244,8 +245,104 @@
       transform: translateY(-1px);
     }
 
+    .history-section {
+      margin-top: 72px;
+    }
+
+    .history-wrap {
+      display: grid;
+      gap: 18px;
+    }
+
+    .history-panel {
+      background: rgba(255,255,255,0.66);
+      border: 1px solid rgba(255,255,255,0.56);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      border-radius: 26px;
+      padding: 24px;
+      overflow: hidden;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .history-title {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0;
+    }
+
+    .history-subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .history-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .history-item {
+      display: grid;
+      grid-template-columns: 96px 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.82);
+      border: 1px solid rgba(0,0,0,0.05);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .history-item:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+    }
+
+    .history-ver {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: var(--text);
+    }
+
+    .history-desc {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .history-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 36px;
+      padding: 0 14px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(31,111,255,0.08);
+      border: 1px solid rgba(31,111,255,0.12);
+    }
+
+    .history-link:hover {
+      background: rgba(31,111,255,0.12);
+    }
+
     .footer {
-      margin-top: 44px;
+      margin-top: 48px;
       padding-top: 22px;
       border-top: 1px solid var(--line);
       color: var(--muted);
@@ -253,31 +350,26 @@
       line-height: 1.8;
     }
 
-    @media (max-width: 860px) {
+    @media (max-width: 900px) {
       .grid {
         grid-template-columns: 1fr;
       }
+    }
 
-      .title {
-        font-size: 28px;
-      }
-
-      .subtitle {
-        font-size: 18px;
+    @media (max-width: 720px) {
+      .history-item {
+        grid-template-columns: 1fr;
+        align-items: start;
       }
     }
 
     @media (max-width: 520px) {
       .wrap {
-        padding: 28px 16px 56px;
+        padding: 28px 16px 60px;
       }
 
       .hero {
         padding-top: 8px;
-      }
-
-      .card {
-        min-height: auto;
       }
 
       .title {
@@ -288,8 +380,20 @@
         font-size: 15px;
       }
 
+      .subtitle {
+        font-size: 18px;
+      }
+
       .btn {
         width: 100%;
+      }
+
+      .history-panel {
+        padding: 18px;
+      }
+
+      .history-title {
+        font-size: 22px;
       }
     }
   </style>
@@ -300,8 +404,8 @@
       <div class="eyebrow">my-little-apps</div>
       <h1>每天做一个<br>没用的小应用。</h1>
       <div class="subtitle">
-        一些为情绪、朋友、攀岩、随机念头和奇怪审美服务的小工具。
-        它们不一定有用，但大多真实地出现在我的生活里。
+        一些为攀岩、情绪、朋友、随机念头和奇怪审美服务的小工具。
+        它们不一定有用，但都真正在我的生活里出现过。
       </div>
 
       <div class="meta">
@@ -313,7 +417,7 @@
 
     <div class="section-head">
       <h2>作品目录</h2>
-      <div class="section-note">按编号持续增加中</div>
+      <div class="section-note">持续增加中</div>
     </div>
 
     <section class="grid">
@@ -383,7 +487,8 @@
           <span class="tag">Firebase</span>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" href="anger-kit/">打开</a>
+          <a class="btn btn-primary" href="anger-kit3.1.html">打开</a>
+          <a class="btn btn-secondary" href="#history-anger-kit">版本历史</a>
         </div>
       </article>
 
@@ -397,7 +502,7 @@
           <span class="tag">决策器</span>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" href="sissi-menu.html">打开</a>
+          <a class="btn btn-primary" href="xixi-food.html">打开</a>
         </div>
       </article>
 
@@ -426,12 +531,86 @@
         </div>
         <div class="actions">
           <a class="btn btn-primary" href="colorful-sock-generator3.0.html">打开</a>
+          <a class="btn btn-secondary" href="#history-socks">版本历史</a>
         </div>
       </article>
     </section>
 
+    <section class="history-section">
+      <div class="section-head">
+        <h2>版本历史</h2>
+        <div class="section-note">目前先收录有明显迭代的项目</div>
+      </div>
+
+      <div class="history-wrap">
+        <section class="history-panel" id="history-anger-kit">
+          <div class="history-header">
+            <div>
+              <h3 class="history-title">05 · 生气急救器</h3>
+              <div class="history-subtitle">从临时情绪急救工具，长成了支持跨设备同步的像素小装置。</div>
+            </div>
+          </div>
+
+          <div class="history-list">
+            <div class="history-item">
+              <div class="history-ver">v3.1</div>
+              <div class="history-desc">接入 Firebase Realtime Database，实现同名用户跨设备实时同步，并加入同步状态提示。</div>
+              <a class="history-link" href="anger-kit3.1.html">打开</a>
+            </div>
+
+            <div class="history-item">
+              <div class="history-ver">v3.0</div>
+              <div class="history-desc">改成按住蓄力、松手取消、蓄满爆炸的交互方式，仪式感明显增强。</div>
+              <a class="history-link" href="anger-kit3.0.html">打开</a>
+            </div>
+
+            <div class="history-item">
+              <div class="history-ver">v2.0</div>
+              <div class="history-desc">从 React JSX 重写成纯 HTML 单文件，降低部署门槛，方便直接托管和分享。</div>
+              <a class="history-link" href="anger-kit2.0.html">打开</a>
+            </div>
+
+            <div class="history-item">
+              <div class="history-ver">v1.0</div>
+              <div class="history-desc">初始版本。先把“能让我在上班前冷静一点”这件事做出来。</div>
+              <a class="history-link" href="anger-kit.html">打开</a>
+            </div>
+          </div>
+        </section>
+
+        <section class="history-panel" id="history-socks">
+          <div class="history-header">
+            <div>
+              <h3 class="history-title">08 · 彩色袜子生成器</h3>
+              <div class="history-subtitle">从“为什么袜子这么难画对”开始，逐渐变成了一个真正的版本序列。</div>
+            </div>
+          </div>
+
+          <div class="history-list">
+            <div class="history-item">
+              <div class="history-ver">v3.0</div>
+              <div class="history-desc">继续根据像素参照和轮廓思路改写，得到目前相对可用的版本。</div>
+              <a class="history-link" href="colorful-sock-generator3.0.html">打开</a>
+            </div>
+
+            <div class="history-item">
+              <div class="history-ver">v2.0</div>
+              <div class="history-desc">在第一版基础上继续修正比例和轮廓，开始更明确地朝“像袜子”推进。</div>
+              <a class="history-link" href="colorful-sock-generator2.0.html">打开</a>
+            </div>
+
+            <div class="history-item">
+              <div class="history-ver">v1.0</div>
+              <div class="history-desc">初始尝试。证明了“看起来简单的袜子”其实一点都不简单。</div>
+              <a class="history-link" href="colorful-sock-generator.html">打开</a>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
     <footer class="footer">
-      这个页面会继续增长。<br>
+      这个页面会继续增长。<br />
       它既是小应用合集，也有点像另一种形式的日记。
     </footer>
   </main>
