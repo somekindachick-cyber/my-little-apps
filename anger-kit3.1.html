@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>😤 生气急救器</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' shape-rendering='crispEdges'><rect width='32' height='32' fill='%230a0a0f'/><rect x='8' y='4' width='16' height='4' fill='%23FF0000'/><rect x='4' y='8' width='24' height='16' fill='%23CC0000'/><rect x='8' y='24' width='16' height='4' fill='%23FF0000'/><rect x='10' y='10' width='8' height='6' fill='%23FF5252'/></svg>"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet"/>
+<!-- Firebase compat CDN -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0f;font-family:'Press Start 2P',monospace;color:#e0e0e0;image-rendering:pixelated;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.07) 2px,rgba(0,0,0,.07) 4px);pointer-events:none;z-index:999}
+
+/* SYNC */
+#syncStatus{font-size:7px;color:#555;display:flex;align-items:center;margin-bottom:10px;gap:6px;letter-spacing:1px}
+.sync-dot{width:7px;height:7px;display:inline-block;flex-shrink:0}
+.sync-dot.online{background:#69F0AE;box-shadow:0 0 6px #69F0AE}
+.sync-dot.offline{background:#555}
+.sync-dot.syncing{background:#FFD700;box-shadow:0 0 6px #FFD700;animation:flicker .4s infinite}
+
+/* LOGIN */
+#login{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px}
+.login-box{background:#0d1117;border:3px solid #FF6B6B;padding:32px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 0 30px #FF6B6B44}
+.login-icon{font-size:48px;margin-bottom:16px}
+.login-title{font-size:14px;color:#FF6B6B;text-shadow:2px 2px 0 #7B0000,0 0 16px #FF000088;margin-bottom:10px;letter-spacing:2px}
+.login-sub{font-size:9px;color:#666;margin-bottom:24px;line-height:2.2}
+.login-input{background:#111;border:2px solid #444;color:#eee;font-family:'Press Start 2P',monospace;font-size:11px;padding:10px 12px;width:100%;margin-bottom:14px;outline:none;letter-spacing:1px}
+.login-input:focus{border-color:#FF6B6B;box-shadow:0 0 8px #FF6B6B66}
+.login-input.shake{animation:shake .4s}
+.login-btn{background:transparent;border:2px solid #FF6B6B;color:#FF6B6B;font-family:'Press Start 2P',monospace;font-size:11px;padding:10px 20px;cursor:pointer;width:100%;letter-spacing:2px;transition:all .1s}
+.login-btn:hover{background:#FF6B6B22;transform:translateY(-1px)}
+.known-section{margin-top:18px;padding-top:14px;border-top:1px solid #222}
+.known-label{font-size:8px;color:#555;margin-bottom:10px}
+.known-list{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.known-chip{background:#111;border:1px solid #444;color:#aaa;font-family:'Press Start 2P',monospace;font-size:8px;padding:6px 10px;cursor:pointer;transition:all .1s}
+.known-chip:hover{border-color:#FF6B6B;color:#FF6B6B}
+
+/* APP */
+#app{display:none;flex-direction:column;align-items:center;min-height:100vh;padding:20px 16px 48px}
+.title{font-size:13px;color:#FF6B6B;text-shadow:2px 2px 0 #7B0000,0 0 20px #FF000088;letter-spacing:2px;margin-bottom:8px;text-align:center}
+.subtitle{font-size:8px;color:#666;margin-bottom:6px;letter-spacing:1px}
+.user-bar{font-size:8px;color:#555;margin-bottom:6px;display:flex;gap:14px;align-items:center}
+.logout-btn{background:transparent;border:1px solid #333;color:#555;font-family:'Press Start 2P',monospace;font-size:7px;padding:4px 8px;cursor:pointer}
+.logout-btn:hover{border-color:#FF6B6B;color:#FF6B6B}
+
+.stats{display:flex;gap:20px;margin-bottom:22px;background:#111;border:2px solid #333;padding:10px 18px}
+.stat{font-size:9px;color:#aaa;text-align:center}
+.stat-num{font-size:20px;color:#FF6B6B;display:block;margin-top:6px;text-shadow:0 0 10px #FF0000}
+
+/* BUTTON */
+.btn-area{display:flex;flex-direction:column;align-items:center;margin-bottom:18px;gap:14px}
+.btn-wrap{position:relative;display:flex;align-items:center;justify-content:center;width:170px;height:170px}
+.btn-ring{position:absolute;width:140px;height:140px;border:4px solid #FF0000;border-radius:50%;animation:ring-pulse 2s infinite;box-shadow:0 0 20px #FF000066;pointer-events:none}
+.btn-ring2{position:absolute;width:162px;height:162px;border:2px solid #880000;border-radius:50%;animation:ring-pulse 2s infinite .4s;pointer-events:none}
+.big-btn{width:118px;height:118px;border-radius:50%;background:radial-gradient(circle at 38% 35%,#FF5252,#CC0000,#7B0000);border:4px solid #FF0000;box-shadow:0 0 30px #FF000099,inset 0 -4px 0 #550000,inset 0 4px 8px #FF7777;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:'Press Start 2P',monospace;font-size:10px;color:#FFE0E0;text-shadow:1px 1px 0 #550000;position:relative;z-index:2;user-select:none;touch-action:none;letter-spacing:1px;transition:transform .08s,box-shadow .08s,filter .1s}
+.big-btn:disabled{opacity:.4;cursor:not-allowed}
+.big-btn.charging{transform:scale(.96);filter:brightness(1.3) saturate(1.5)}
+.btn-icon{font-size:28px;margin-bottom:5px}
+
+/* FIRE BAR */
+.fire-bar-wrap{width:100%;max-width:320px;display:none;flex-direction:column;align-items:center;gap:6px}
+.fire-bar-wrap.visible{display:flex}
+.fire-bar-label{font-size:8px;color:#FF5722;animation:flicker .5s infinite;letter-spacing:1px}
+.fire-bar-track{width:100%;height:22px;background:#1a0500;border:3px solid #FF3D00;position:relative;overflow:hidden}
+.fire-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#FF6D00,#FF3D00,#FF1744);position:relative}
+.fire-bar-fill::after{content:'';position:absolute;right:0;top:0;width:8px;height:100%;background:repeating-linear-gradient(90deg,#FFF176 0 2px,#FFEB3B 2px 4px,#FF9800 4px 6px,transparent 6px 8px);animation:fire-flicker .15s infinite steps(1)}
+.fire-bar-pct{font-size:9px;color:#FFD700;text-shadow:0 0 8px #FF9800}
+
+/* EXPLOSION */
+#explodeOverlay{position:fixed;inset:0;z-index:500;pointer-events:none;display:none}
+#explodeCanvas{position:absolute;inset:0;width:100%;height:100%}
+
+/* SOOTHING */
+.sooth-panel{background:#0d1117;border:3px solid #4A90D9;padding:18px;width:100%;max-width:340px;margin-bottom:18px;box-shadow:0 0 20px #4A90D966;animation:panel-in .4s ease-out;text-align:center}
+.sprite-wrap{display:flex;justify-content:center;margin-bottom:12px}
+canvas.sprite{image-rendering:pixelated;width:160px;height:160px}
+.sprite-name{font-size:9px;color:#80CBC4;margin-bottom:12px}
+.msg-zh{font-size:13px;color:#FFD54F;line-height:2;margin-bottom:8px;text-shadow:0 0 10px #FF980088}
+.msg-en{font-size:8px;color:#666;line-height:2.2}
+
+/* CLEANSING */
+.clean-panel{background:#100a00;border:3px solid #FF5722;padding:16px;width:100%;max-width:340px;margin-bottom:18px;box-shadow:0 0 30px #FF572266;text-align:center}
+.clean-title{font-size:11px;color:#FF5722;margin-bottom:10px;animation:flicker .8s infinite}
+canvas.clean{image-rendering:pixelated;background:#0d0500;border:2px solid #333;display:block;margin:0 auto}
+.clean-sub{font-size:9px;color:#888;margin-top:10px;min-height:18px}
+
+/* DONE */
+.done-panel{background:#001a0a;border:3px solid #69F0AE;padding:20px;width:100%;max-width:340px;margin-bottom:18px;box-shadow:0 0 30px #69F0AE44;text-align:center;animation:panel-in .4s}
+.done-title{font-size:10px;color:#69F0AE;margin-bottom:10px;text-shadow:0 0 12px #00FF88}
+.done-stars{font-size:24px;margin:10px 0;letter-spacing:6px}
+.done-sub{font-size:9px;color:#888;line-height:2.2}
+
+/* ACTIONS */
+.action-row{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;justify-content:center}
+.pixel-btn{font-family:'Press Start 2P',monospace;font-size:8px;padding:8px 12px;border:2px solid;background:transparent;cursor:pointer;transition:all .1s;letter-spacing:1px}
+.pixel-btn:hover{filter:brightness(1.3);transform:translateY(-1px)}
+.btn-orange{color:#FF9800;border-color:#FF9800}
+.btn-teal{color:#80CBC4;border-color:#80CBC4}
+.btn-gold{color:#FFD700;border-color:#FFD700}
+
+/* HISTORY */
+.history{width:100%;max-width:340px;margin-bottom:14px}
+.history-title{font-size:9px;color:#888;margin-bottom:10px}
+.history-days{display:flex;flex-wrap:wrap;gap:6px}
+.hist-day{font-size:8px;padding:5px 7px;border:1px solid #333;color:#aaa;background:#111}
+.hist-day.red{border-color:#FF6B6B;color:#FF6B6B}
+.hist-day.gold{border-color:#FFD700}
+
+.footer{font-size:6px;color:#2a2a2a;text-align:center;margin-top:10px}
+.deco{position:fixed;width:4px;height:4px;pointer-events:none;z-index:0}
+
+@keyframes ring-pulse{0%,100%{transform:scale(1);opacity:.6}50%{transform:scale(1.08);opacity:1}}
+@keyframes panel-in{0%{opacity:0;transform:translateY(12px) scale(.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes flicker{0%,100%{opacity:1}50%{opacity:.65}}
+@keyframes fire-flicker{0%{transform:translateX(0)}50%{transform:translateX(-2px)}}
+@keyframes shake{0%,100%{transform:scale(1) rotate(0)}20%{transform:scale(.95) rotate(-3deg)}40%{transform:scale(1.05) rotate(3deg)}60%{transform:scale(.97) rotate(-2deg)}80%{transform:scale(1.02) rotate(2deg)}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-box">
+    <div class="login-icon">💢</div>
+    <div class="login-title">生气急救器</div>
+    <div class="login-sub">输入你的名字<br/>记录属于你自己的怒气</div>
+    <input id="nameInput" class="login-input" placeholder="你叫什么..." maxlength="12"/>
+    <button class="login-btn" onclick="doLogin()">进入 ▶</button>
+    <div class="known-section" id="knownSection" style="display:none">
+      <div class="known-label">— 快速登录 —</div>
+      <div class="known-list" id="knownList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- EXPLOSION OVERLAY -->
+<div id="explodeOverlay"><canvas id="explodeCanvas"></canvas></div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="deco" id="d0" style="left:5%;top:10%"></div>
+  <div class="deco" id="d1" style="left:90%;top:20%"></div>
+  <div class="deco" id="d2" style="left:15%;top:60%"></div>
+  <div class="deco" id="d3" style="left:80%;top:70%"></div>
+  <div class="deco" id="d4" style="left:10%;top:85%"></div>
+  <div class="deco" id="d5" style="left:88%;top:40%"></div>
+
+  <h1 class="title">😤 生气急救器 😤</h1>
+  <p class="subtitle">ANGER EMERGENCY KIT · 8-BIT EDITION</p>
+  <div class="user-bar">
+    <span id="userLabel"></span>
+    <button class="logout-btn" onclick="doLogout()">切换用户</button>
+  </div>
+  <div id="syncStatus"><div class="sync-dot offline" id="syncDot"></div><span id="syncText">连接中...</span></div>
+
+  <div class="stats">
+    <div class="stat">今日<span class="stat-num" id="todayCount">0</span></div>
+    <div class="stat" style="border-left:2px solid #333;padding-left:20px">本月<span class="stat-num" id="monthCount">0</span></div>
+  </div>
+
+  <div class="btn-area">
+    <div class="btn-wrap" id="btnWrap">
+      <div class="btn-ring2"></div>
+      <div class="btn-ring"></div>
+      <button class="big-btn" id="bigBtn"
+        onmousedown="startCharge()" onmouseup="cancelCharge()" onmouseleave="cancelCharge()"
+        ontouchstart="startCharge(event)" ontouchend="cancelCharge()" ontouchcancel="cancelCharge()">
+        <span class="btn-icon" id="btnIcon">💢</span>
+        <span id="btnLabel">按住！</span>
+        <span style="font-size:7px;color:#FF8888;margin-top:3px" id="btnHint">HOLD</span>
+      </button>
+    </div>
+    <div class="fire-bar-wrap" id="fireBarWrap">
+      <div class="fire-bar-label" id="fireBarLabel">🔥 怒气蓄力中 🔥</div>
+      <div class="fire-bar-track"><div class="fire-bar-fill" id="fireBarFill"></div></div>
+      <div class="fire-bar-pct" id="fireBarPct">0%</div>
+    </div>
+  </div>
+
+  <div id="idleWrap" style="margin-bottom:18px;text-align:center">
+    <canvas id="idleCanvas" width="80" height="80" class="sprite" style="opacity:.4;width:120px;height:120px"></canvas>
+  </div>
+
+  <div class="sooth-panel" id="soothPanel" style="display:none">
+    <div class="sprite-wrap"><canvas id="soothCanvas" width="80" height="80" class="sprite"></canvas></div>
+    <div class="sprite-name" id="spriteName"></div>
+    <div class="msg-zh" id="msgZh"></div>
+    <div class="msg-en" id="msgEn"></div>
+  </div>
+
+  <div class="clean-panel" id="cleanPanel" style="display:none">
+    <div class="clean-title">🔥 恶灵退散仪式 🔥</div>
+    <canvas id="cleanCanvas" width="200" height="120" class="clean" style="width:200px;height:120px"></canvas>
+    <div class="clean-sub" id="cleanSub">召唤今日之怒...</div>
+  </div>
+
+  <div class="done-panel" id="donePanel" style="display:none">
+    <div class="done-title">✨ 今日净化完成 ✨</div>
+    <div class="done-stars">⭐🌟💫✨🌠</div>
+    <div class="done-sub" id="doneSub"></div>
+  </div>
+
+  <div class="action-row">
+    <button class="pixel-btn btn-orange" id="cleanBtn" style="display:none" onclick="startCleansing()">🔥 今日净化</button>
+    <button class="pixel-btn btn-teal" id="resetBtn" style="display:none" onclick="resetDay()">🌱 重置今日</button>
+    <button class="pixel-btn btn-gold" onclick="toggleHistory()">📅 月度记录</button>
+  </div>
+
+  <div class="history" id="historyPanel" style="display:none">
+    <div class="history-title" id="histTitle"></div>
+    <div class="history-days" id="histDays"></div>
+    <div style="font-size:7px;color:#444;margin-top:10px" id="histFooter"></div>
+  </div>
+
+  <div class="footer">☁️ 云端同步 · 跨设备记录 · v3.1</div>
+</div>
+
+<script>
+// ── FIREBASE INIT ─────────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyA2rWGcDoQ75eKKksZMg_es3qx4CEFoQEg",
+  authDomain: "anger-kit.firebaseapp.com",
+  databaseURL: "https://anger-kit-default-rtdb.firebaseio.com",
+  projectId: "anger-kit",
+  storageBucket: "anger-kit.firebasestorage.app",
+  messagingSenderId: "220261443399",
+  appId: "1:220261443399:web:2a05fc45fc25b52bdd0e62"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ── MESSAGES (50) ─────────────────────────────────────────────────────────────
+const MESSAGES = [
+  {zh:"这不是你的课题",                en:"This is not your lesson to carry"},
+  {zh:"这是他的问题，不是你的",         en:"Their problem, not yours"},
+  {zh:"你不必为此付出代价",             en:"You owe nothing for their chaos"},
+  {zh:"你不需要赢得每一场战",           en:"Not every battle needs your sword"},
+  {zh:"别人的失控，不是你的责任",       en:"Their storm is not your fault"},
+  {zh:"你可以选择不回应",               en:"You are allowed to not respond"},
+  {zh:"沉默有时是最有力的回答",         en:"Sometimes silence is the loudest answer"},
+  {zh:"你的边界是你的盔甲",             en:"Your boundaries are your armor"},
+  {zh:"放下，你才是自由的",             en:"Release it — freedom awaits"},
+  {zh:"愤怒是云，你是天空",             en:"Anger is clouds. You are the sky."},
+  {zh:"他们的火，烧不到你",             en:"Their fire cannot reach you"},
+  {zh:"让它走，就像水流过石头",         en:"Let it go, like water over stone"},
+  {zh:"握紧拳头，就抓不住星星",         en:"A clenched fist cannot hold a star"},
+  {zh:"今天的怒气，明天是笑谈",         en:"Today's rage, tomorrow's story"},
+  {zh:"这件事五年后还重要吗",           en:"Will this matter in five years?"},
+  {zh:"你放下的每一件事都让你更轻",     en:"Every release makes you lighter"},
+  {zh:"你已经做得足够好了",             en:"You have done enough"},
+  {zh:"你很勇敢，你值得平静",           en:"You are brave. You deserve peace."},
+  {zh:"慈悲自己，如同慈悲他人",         en:"Grant yourself the grace you give others"},
+  {zh:"你的感受是真实的，也会过去的",   en:"Your feelings are real — and they will pass"},
+  {zh:"你不需要向任何人证明自己",       en:"You owe no one a performance"},
+  {zh:"你已经比你想象的更强大",         en:"You are stronger than you know"},
+  {zh:"生气说明你在乎，这很好",         en:"Anger means you care. That's okay."},
+  {zh:"你有权利愤怒，也有权利放下",     en:"You can be angry and still choose peace"},
+  {zh:"呼吸。这一刻会过去",             en:"Breathe. This moment will pass."},
+  {zh:"深呼吸，把怒气呼出去",           en:"Exhale the fire, inhale the calm"},
+  {zh:"此刻的你，已经足够安全",         en:"Right now, you are safe"},
+  {zh:"回到身体，感受脚踩在地上",       en:"Feel your feet on the ground"},
+  {zh:"五秒钟，只是呼吸",               en:"Five seconds. Just breathe."},
+  {zh:"你的心跳会慢下来的",             en:"Your heartbeat will slow. It always does."},
+  {zh:"你的平静比他们的噪音更有力",     en:"Your peace outpowers their noise"},
+  {zh:"愤怒消耗的是你自己的能量",       en:"Anger burns your own fuel"},
+  {zh:"不值得的人不值得你的情绪",       en:"They are not worth your energy"},
+  {zh:"你的注意力是你最贵的资源",       en:"Your attention is your most precious resource"},
+  {zh:"别让别人的行为决定你的状态",     en:"Don't let their actions pilot your mood"},
+  {zh:"你是主角，不是配角",             en:"You are the main character of your story"},
+  {zh:"月亮不在乎狗对它吠叫",           en:"The moon doesn't care when dogs bark at it"},
+  {zh:"大海接纳所有河流却不被淹没",     en:"The sea accepts all rivers without drowning"},
+  {zh:"竹子弯而不折，风过自直",         en:"Bamboo bends in wind but does not break"},
+  {zh:"你是光，黑暗无法抓住你",         en:"You are light. Darkness cannot hold you."},
+  {zh:"一切都是暂时的，包括这份愤怒",   en:"All things pass — including this anger"},
+  {zh:"他们上辈子欠你的，这辈子还",     en:"They're paying off a debt from another life"},
+  {zh:"今天的负能量，喂不起你",         en:"Today's bad vibes can't afford you"},
+  {zh:"你太贵了，生气不值得",           en:"You're too expensive to waste on this"},
+  {zh:"宇宙在看着，而且支持你",         en:"The universe sees this — and it's on your side"},
+  {zh:"光在你心里，没有人能熄灭它",     en:"The light in you cannot be extinguished"},
+  {zh:"你被爱着，即使现在感觉不到",     en:"You are loved, even when it doesn't feel like it"},
+  {zh:"每一次愤怒之后，都有成长",       en:"After every anger, there is growth"},
+  {zh:"你值得拥有一个平静的内心",       en:"You deserve a quiet and peaceful heart"},
+  {zh:"星星不会因为乌云而消失",         en:"Stars don't disappear just because clouds hide them"},
+];
+
+const SPRITE_NAMES = ["佛陀","天使","莲花","菩萨","耶稣","德鲁伊女祭司","守护天使","女娲"];
+const DECO_COLORS  = ["#FF6B6B","#FFD700","#6BCB77","#4D96FF","#FF6BFF","#80CBC4"];
+const CHARGE_DURATION = 2200;
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let currentUser="", angerLog={}, mode="idle", tick=0, spriteIdx=0;
+let tickRaf=null, cleanTimer=null, cleanPhase=0, soothTimer=null;
+let chargeStart=null, chargeRaf=null, chargeComplete=false;
+let dbRef=null, dbListener=null;
+
+function today(){return new Date().toISOString().slice(0,10)}
+function thisMonth(){return new Date().toISOString().slice(0,7)}
+function todayCount(){return angerLog[today()]||0}
+function monthCount(){
+  const m=thisMonth();
+  return Object.entries(angerLog).filter(([k])=>k.startsWith(m)).reduce((s,[,v])=>s+v,0);
+}
+
+// ── SYNC STATUS UI ────────────────────────────────────────────────────────────
+function setSyncStatus(state){
+  const dot=document.getElementById("syncDot");
+  const txt=document.getElementById("syncText");
+  if(!dot||!txt) return;
+  dot.className="sync-dot "+state;
+  txt.textContent = state==="online"?"☁️ 已同步" : state==="syncing"?"⏳ 同步中..." : "📴 离线模式";
+}
+
+// ── FIREBASE READ/WRITE ───────────────────────────────────────────────────────
+function connectUserDB(username){
+  // detach old listener
+  if(dbRef && dbListener) dbRef.off("value", dbListener);
+  dbRef = db.ref("users/"+username+"/logs");
+
+  setSyncStatus("syncing");
+  // listen for realtime updates from any device
+  dbListener = dbRef.on("value", snap=>{
+    const data = snap.val();
+    angerLog = data || {};
+    // also cache locally
+    try{localStorage.setItem("angerLog_"+username, JSON.stringify(angerLog))}catch{}
+    updateStats();
+    if(mode==="history") renderHistory();
+    setSyncStatus("online");
+  }, err=>{
+    console.warn("Firebase read error:", err);
+    setSyncStatus("offline");
+  });
+
+  // monitor connection state
+  db.ref(".info/connected").on("value", snap=>{
+    setSyncStatus(snap.val() ? "online" : "offline");
+  });
+}
+
+function saveToCloud(log){
+  if(!dbRef){setSyncStatus("offline");return}
+  setSyncStatus("syncing");
+  dbRef.set(log)
+    .then(()=>setSyncStatus("online"))
+    .catch(()=>setSyncStatus("offline"));
+}
+
+// ── LOGIN ─────────────────────────────────────────────────────────────────────
+function initLogin(){
+  const saved=localStorage.getItem("angerKit_currentUser");
+  if(saved){enterApp(saved);return}
+  try{
+    const users=JSON.parse(localStorage.getItem("angerKit_users")||"[]");
+    if(users.length){
+      document.getElementById("knownSection").style.display="block";
+      const list=document.getElementById("knownList");list.innerHTML="";
+      users.forEach(u=>{
+        const btn=document.createElement("button");btn.className="known-chip";
+        btn.textContent=u; btn.onclick=()=>enterApp(u); list.appendChild(btn);
+      });
+    }
+  }catch{}
+  document.getElementById("nameInput").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});
+}
+function doLogin(){
+  const name=document.getElementById("nameInput").value.trim();
+  if(!name){
+    const i=document.getElementById("nameInput");
+    i.classList.add("shake");setTimeout(()=>i.classList.remove("shake"),500);return;
+  }
+  enterApp(name);
+}
+function enterApp(name){
+  currentUser=name;
+  try{
+    localStorage.setItem("angerKit_currentUser",name);
+    const users=JSON.parse(localStorage.getItem("angerKit_users")||"[]");
+    if(!users.includes(name)) localStorage.setItem("angerKit_users",JSON.stringify([...users,name]));
+    // load local cache first for instant display
+    const cached=localStorage.getItem("angerLog_"+name);
+    if(cached) angerLog=JSON.parse(cached);
+  }catch{}
+  document.getElementById("login").style.display="none";
+  document.getElementById("app").style.display="flex";
+  document.getElementById("userLabel").textContent="👤 "+name;
+  updateStats();
+  connectUserDB(name); // then sync from cloud
+  startTicker();
+  setMode("idle");
+}
+function doLogout(){
+  stopTicker();cancelCharge();
+  if(dbRef && dbListener){dbRef.off("value",dbListener);dbListener=null}
+  try{localStorage.removeItem("angerKit_currentUser")}catch{}
+  currentUser="";angerLog={};
+  document.getElementById("app").style.display="none";
+  document.getElementById("login").style.display="flex";
+  document.getElementById("nameInput").value="";
+}
+
+// ── TICKER ─────────────────────────────────────────────────────────────────────
+function startTicker(){
+  if(tickRaf)cancelAnimationFrame(tickRaf);
+  function loop(){tick++;drawSprite();animateDeco();if(mode==="cleansing")drawClean();tickRaf=requestAnimationFrame(loop)}
+  tickRaf=requestAnimationFrame(loop);
+}
+function stopTicker(){if(tickRaf){cancelAnimationFrame(tickRaf);tickRaf=null}}
+function animateDeco(){
+  for(let i=0;i<6;i++){
+    const el=document.getElementById("d"+i);
+    if(el) el.style.background=DECO_COLORS[i]+Math.floor(30+((tick+i*20)%60)/60*80).toString(16).padStart(2,"0");
+  }
+}
+
+// ── CHARGE ─────────────────────────────────────────────────────────────────────
+function startCharge(e){
+  if(e) e.preventDefault();
+  if(mode==="cleansing"||mode==="soothing") return;
+  if(chargeStart!==null) return;
+  chargeStart=performance.now(); chargeComplete=false;
+  document.getElementById("bigBtn").classList.add("charging");
+  document.getElementById("fireBarWrap").classList.add("visible");
+  document.getElementById("btnLabel").textContent="蓄力...";
+  updateChargeBar();
+}
+function updateChargeBar(){
+  if(chargeStart===null) return;
+  const pct=Math.min(1,(performance.now()-chargeStart)/CHARGE_DURATION);
+  const pctInt=Math.floor(pct*100);
+  document.getElementById("fireBarFill").style.width=pctInt+"%";
+  document.getElementById("fireBarPct").textContent=pctInt+"%";
+  document.getElementById("fireBarLabel").textContent=
+    pct<.33?"🔥 怒气蓄力中 🔥":pct<.66?"💢 怒火上涌！！ 💢":"😡 即将爆炸！！！ 😡";
+  const btn=document.getElementById("bigBtn");
+  if(pct>.8) btn.style.transform=`scale(${.96+Math.sin(Date.now()*.05)*.02}) rotate(${Math.sin(Date.now()*.07)*2}deg)`;
+  document.getElementById("btnIcon").textContent=pct<.4?"😠":pct<.7?"🤬":pct<.95?"💥":"🌋";
+  if(pct>=1){chargeComplete=true;cancelAnimationFrame(chargeRaf);triggerExplosion();return}
+  chargeRaf=requestAnimationFrame(updateChargeBar);
+}
+function cancelCharge(){
+  if(chargeStart===null||chargeComplete) return;
+  cancelAnimationFrame(chargeRaf); chargeStart=null;
+  document.getElementById("bigBtn").classList.remove("charging");
+  document.getElementById("bigBtn").style.transform="";
+  document.getElementById("fireBarWrap").classList.remove("visible");
+  document.getElementById("fireBarFill").style.width="0%";
+  document.getElementById("fireBarPct").textContent="0%";
+  document.getElementById("btnLabel").textContent="按住！";
+  document.getElementById("btnIcon").textContent="💢";
+}
+
+// ── EXPLOSION ─────────────────────────────────────────────────────────────────
+function triggerExplosion(){
+  document.getElementById("bigBtn").classList.remove("charging");
+  document.getElementById("bigBtn").style.transform="";
+  document.getElementById("bigBtn").disabled=true;
+  document.getElementById("fireBarWrap").classList.remove("visible");
+  document.getElementById("fireBarFill").style.width="0%";
+  document.getElementById("btnIcon").textContent="💢";
+  document.getElementById("btnLabel").textContent="按住！";
+
+  // record anger — write to Firebase
+  const key=today();
+  angerLog[key]=(angerLog[key]||0)+1;
+  saveToCloud(angerLog);
+  updateStats();
+
+  const mi=Math.floor(Math.random()*MESSAGES.length);
+  const si=Math.floor(Math.random()*SPRITE_NAMES.length);
+  spriteIdx=si;
+  const pendingMsg=MESSAGES[mi], pendingSprite=SPRITE_NAMES[si];
+
+  const overlay=document.getElementById("explodeOverlay");
+  const canvas=document.getElementById("explodeCanvas");
+  overlay.style.display="block";
+  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+  const ctx=canvas.getContext("2d");
+  const cx=canvas.width/2, cy=canvas.height/2;
+
+  const colors=["#FF1744","#FF6D00","#FFD700","#FF5722","#FFEB3B","#FFF","#FF4081","#E040FB"];
+  const particles=[];
+  for(let i=0;i<120;i++){
+    const angle=Math.random()*Math.PI*2, speed=3+Math.random()*14;
+    particles.push({x:cx,y:cy,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed-Math.random()*4,
+      size:4+Math.floor(Math.random()*10),color:colors[Math.floor(Math.random()*colors.length)],
+      life:1,decay:.012+Math.random()*.018,gravity:.18+Math.random()*.12,square:Math.random()>.4});
+  }
+  const rings=[{r:0,maxR:Math.max(cx,cy)*1.6,alpha:1,color:"#FF1744"},
+               {r:0,maxR:Math.max(cx,cy)*1.2,alpha:.8,color:"#FF6D00"},
+               {r:0,maxR:Math.max(cx,cy)*.8,alpha:.6,color:"#FFD700"}];
+
+  ctx.fillStyle="#FFF"; ctx.fillRect(0,0,canvas.width,canvas.height);
+  let frame=0;
+  function explodeLoop(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    frame++;
+    ctx.fillStyle="rgba(0,0,0,"+Math.min(.7,frame*.02)+")";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    rings.forEach(r=>{
+      r.r+=(r.maxR-r.r)*.12; r.alpha*=.92;
+      if(r.alpha<.01) return;
+      ctx.strokeStyle=r.color; ctx.globalAlpha=r.alpha; ctx.lineWidth=6;
+      ctx.beginPath(); ctx.arc(cx,cy,r.r,0,Math.PI*2); ctx.stroke(); ctx.globalAlpha=1;
+    });
+    let alive=0;
+    particles.forEach(p=>{
+      if(p.life<=0) return; alive++;
+      p.x+=p.vx; p.y+=p.vy; p.vy+=p.gravity; p.vx*=.98; p.life-=p.decay;
+      ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.color;
+      if(p.square) ctx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size);
+      else{const s=Math.ceil(p.size/4)*2;for(let dx=0;dx<2;dx++)for(let dy=0;dy<2;dy++)ctx.fillRect(Math.floor(p.x/s)*s+dx*s,Math.floor(p.y/s)*s+dy*s,s,s)}
+      ctx.globalAlpha=1;
+    });
+    if(frame<30){
+      const alpha=frame<10?frame/10:1-(frame-10)/20;
+      ctx.globalAlpha=Math.max(0,alpha); ctx.fillStyle="#FFD700";
+      ctx.font="bold 28px 'Press Start 2P',monospace"; ctx.textAlign="center";
+      ctx.fillText("💥 BOOM! 💥",cx,cy-20+Math.sin(frame*.3)*5); ctx.globalAlpha=1;
+    }
+    if(alive>0||frame<40) requestAnimationFrame(explodeLoop);
+    else{
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      overlay.style.display="none";
+      document.getElementById("bigBtn").disabled=false;
+      chargeStart=null; chargeComplete=false;
+      document.getElementById("spriteName").textContent="— "+pendingSprite+" 降临 —";
+      document.getElementById("msgZh").textContent=pendingMsg.zh;
+      document.getElementById("msgEn").textContent=pendingMsg.en;
+      setMode("soothing");
+      if(soothTimer)clearTimeout(soothTimer);
+      soothTimer=setTimeout(()=>setMode("idle"),10000);
+    }
+  }
+  requestAnimationFrame(explodeLoop);
+}
+
+// ── PIXEL HELPER ──────────────────────────────────────────────────────────────
+function P(ctx,x,y,col,sc){ctx.fillStyle=col;ctx.fillRect(x*sc,y*sc,sc,sc)}
+
+function drawSprite(){
+  const c=mode==="soothing"?document.getElementById("soothCanvas"):document.getElementById("idleCanvas");
+  if(!c) return;
+  const ctx=c.getContext("2d"); ctx.imageSmoothingEnabled=false;
+  [drawBuddha,drawAngel,drawLotus,drawBodhisattva,drawJesus,drawDruid,drawGuardAngel,drawNuwa][spriteIdx](ctx,tick);
+}
+
+function drawBuddha(ctx,t){
+  ctx.clearRect(0,0,80,80);const sc=2.5,gold="#FFD700",skin="#F4C98A",robe="#FF8C00",halo="#FFF176",lotus="#FF69B4",lg="#66BB6A";
+  const pulse=.5+.5*Math.sin(t*.05);ctx.globalAlpha=.3+pulse*.4;ctx.fillStyle=halo;ctx.beginPath();ctx.arc(40,26,20,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+  const Q=(x,y,c)=>P(ctx,x,y,c,sc);
+  [[13,6],[14,6],[15,6],[16,6],[17,6],[13,7],[17,7],[13,8],[14,8],[15,8],[16,8],[17,8],[14,9],[15,9],[16,9],[14,10],[15,10],[16,10]].forEach(([x,y])=>Q(x,y,skin));
+  [[14,5],[15,5],[16,5]].forEach(([x,y])=>Q(x,y,gold));Q(14,8,"#333");Q(16,8,"#333");Q(15,10,"#c97");
+  for(let y=11;y<=18;y++)for(let x=11;x<=19;x++)Q(x,y,robe);
+  [[14,12],[15,12],[16,12],[15,13]].forEach(([x,y])=>Q(x,y,gold));
+  [[13,15],[14,15],[13,16],[14,16],[16,15],[17,15],[16,16],[17,16]].forEach(([x,y])=>Q(x,y,skin));
+  const lx=15,ly=20;[[lx-2,ly],[lx-1,ly],[lx,ly],[lx+1,ly],[lx+2,ly],[lx-1,ly+1],[lx,ly+1],[lx+1,ly+1]].forEach(([x,y])=>Q(x,y,lotus));
+  [[lx-1,ly-1],[lx,ly-1],[lx+1,ly-1]].forEach(([x,y])=>Q(x,y,lg));
+  if(Math.floor(t/10)%2===0)[[10,4],[20,6],[11,17],[21,14]].forEach(([x,y])=>Q(x,y,"#FFF"));
+}
+function drawAngel(ctx,t){
+  ctx.clearRect(0,0,80,80);const sc=2.5,skin="#FDDBB4",white="#ECEFF1",halo="#FFE082",wing="#E3F2FD";
+  const bob=Math.floor(t/15)%2;const Q=(x,y,c)=>P(ctx,x,y,c,sc);
+  [[13,3],[14,3],[15,3],[16,3],[17,3]].forEach(([x,y])=>Q(x,y+bob,halo));
+  [[8,10],[9,10],[9,9],[10,9],[10,8],[20,8],[21,9],[21,10],[22,10],[8,11],[9,11],[9,12],[10,12],[20,12],[21,11],[22,11]].forEach(([x,y])=>Q(x,y,wing));
+  [[13,10],[14,10],[15,10],[16,10],[17,10],[12,11],[13,11],[14,11],[15,11],[16,11],[17,11],[18,11],[12,12],[18,12],[13,13],[17,13],[14,14],[15,14],[16,14]].forEach(([x,y])=>Q(x,y,white));
+  [[13,6],[14,6],[15,6],[16,6],[17,6],[13,7],[17,7],[13,8],[14,8],[15,8],[16,8],[17,8],[14,9],[15,9],[16,9]].forEach(([x,y])=>Q(x,y,skin));
+  Q(14,7,"#333");Q(16,7,"#333");Q(15,9,"#F48FB1");
+  const s=Math.floor(t/8)%3;if(s===0)Q(10,7,"#FFF");if(s===1)Q(20,5,"#FFF");if(s===2)Q(9,14,"#FFF");
+}
+function drawLotus(ctx,t){
+  ctx.clearRect(0,0,80,80);const sc=2.5,p1="#F48FB1",p2="#F8BBD0",p3="#E91E8C",water="#81D4FA",leaf="#66BB6A",ctr="#FFF176";
+  const Q=(x,y,c)=>P(ctx,x,y,c,sc);const r=Math.floor(t/12)%3;
+  for(let x=8;x<=22;x++)Q(x,21,water);for(let x=9;x<=21;x++)Q(x,22,r===0?"#64B5F6":water);for(let x=10;x<=20;x++)Q(x,23,water);
+  [[15,18],[15,19],[15,20]].forEach(([x,y])=>Q(x,y,leaf));[[12,17],[13,17],[11,18],[12,18],[17,17],[18,17],[18,18],[19,18]].forEach(([x,y])=>Q(x,y,leaf));
+  [[14,13],[15,13],[16,13],[13,14],[17,14],[13,15],[17,15],[12,15],[18,15],[12,16],[18,16]].forEach(([x,y])=>Q(x,y,p2));
+  [[14,12],[15,12],[16,12],[13,13],[17,13],[13,14],[17,14]].forEach(([x,y])=>Q(x,y,p1));
+  [[14,11],[15,11],[16,11],[14,12],[16,12]].forEach(([x,y])=>Q(x,y,p3));[[15,10],[14,11],[15,11],[16,11],[15,12]].forEach(([x,y])=>Q(x,y,ctr));
+  const sp=Math.floor(t/10)%4;if(sp===0){Q(11,11,"#FFF");Q(20,14,"#FFF")}if(sp===1){Q(12,10,"#FFF");Q(19,11,"#FFF")}if(sp===2){Q(10,15,"#FFF");Q(21,13,"#FFF")}
+}
+function drawBodhisattva(ctx,t){
+  ctx.clearRect(0,0,80,80);const sc=2.5,skin="#F4C98A",robe="#7E57C2",gold="#FFD700",jewel="#E91E63",crown="#FFB300",halo="#FFF9C4";
+  const Q=(x,y,c)=>P(ctx,x,y,c,sc);ctx.globalAlpha=.25+.25*Math.sin(t*.04);ctx.fillStyle=halo;ctx.beginPath();ctx.arc(40,20,22,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+  [[13,3],[14,3],[15,3],[16,3],[17,3],[15,2]].forEach(([x,y])=>Q(x,y,crown));Q(15,2,jewel);
+  [[13,5],[14,5],[15,5],[16,5],[17,5],[13,6],[17,6],[13,7],[14,7],[15,7],[16,7],[17,7],[14,8],[15,8],[16,8]].forEach(([x,y])=>Q(x,y,skin));
+  Q(14,6,"#333");Q(16,6,"#333");Q(15,8,jewel);
+  for(let y=9;y<=18;y++)for(let x=11+(y>13?1:0);x<=19-(y>13?1:0);x++)Q(x,y,robe);
+  [[13,9],[14,9],[15,9],[16,9],[17,9],[12,13],[18,13]].forEach(([x,y])=>Q(x,y,gold));
+  [[18,10],[19,10],[18,9],[19,9],[18,8],[12,14],[13,14],[12,15],[13,15],[12,16],[13,16]].forEach(([x,y])=>Q(x,y,skin));
+  [[11,16],[12,16],[13,16],[11,17],[13,17],[11,18],[12,18],[13,18]].forEach(([x,y])=>Q(x,y,"#81D4FA"));
+  const jt=Math.floor(t/8)%3;[[9,7],[21,8],[10,15]].forEach(([x,y],i)=>{if(i===jt)Q(x,y,jewel)});
+}
+function drawJesus(ctx,t){
+  ctx.clearRect(0,0,80,80);const sc=2.5,skin="#F5CBA7",robe="#5DADE2",sash="#E74C3C",hair="#6E2C00",beard="#7D3C00",gold="#FFD700";
+  const Q=(x,y,c)=>P(ctx,x,y,c,sc);const pulse=.4+.4*Math.sin(t*.04);
+  ctx.globalAlpha=pulse*.5;ctx.fillStyle=gold;ctx.beginPath();ctx.arc(40,18,16,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+  if(Math.floor(t/12)%2===0)[[15,4],[15,5],[15,6],[12,6],[13,6],[14,6],[16,6],[17,6],[18,6]].forEach(([x,y])=>Q(x,y,gold));
+  [[13,5],[14,5],[15,5],[16,5],[17,5],[12,6],[18,6],[12,7],[18,7],[12,8]].forEach(([x,y])=>Q(x,y,hair));
+  [[13,6],[14,6],[15,6],[16,6],[17,6],[13,7],[14,7],[15,7],[16,7],[17,7],[13,8],[14,8],[15,8],[16,8],[17,8],[14,9],[15,9],[16,9]].forEach(([x,y])=>Q(x,y,skin));
+  Q(14,7,"#4A235A");Q(16,7,"#4A235A");Q(15,9,"#c87");
+  [[14,10],[15,10],[16,10],[14,11],[15,11],[16,11]].forEach(([x,y])=>Q(x,y,beard));
+  for(let y=11;y<=20;y++)for(let x=12+(y>16?1:0);x<=18-(y>16?1:0);x++)Q(x,y,robe);
+  [[15,12],[15,13],[15,14],[15,15],[14,15],[16,15]].forEach(([x,y])=>Q(x,y,sash));
+  [[11,13],[12,13],[11,14],[12,14],[18,13],[19,13],[18,14],[19,14]].forEach(([x,y])=>Q(x,y,skin));
+  const ray=Math.floor(t/10)%4;[[10,5],[20,5],[9,10],[21,10]].forEach(([x,y],i)=>{if(i===ray)Q(x,y,"#FFFDE7")});
+}
+function drawDruid(ctx,t){
+  ctx.clearRect(0,0,80,80);const sc=2.5,skin="#F0D9B5",robe="#2E7D32",hood="#1B5E20",leaf="#66BB6A",gold="#FFD700",flower="#CE93D8",staff="#8D6E63";
+  const Q=(x,y,c)=>P(ctx,x,y,c,sc);const pulse=.3+.3*Math.sin(t*.06);
+  ctx.globalAlpha=pulse;ctx.fillStyle="#A5D6A7";ctx.beginPath();ctx.arc(40,20,18,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+  for(let y=6;y<=22;y++)Q(20,y,staff);Q(20,5,leaf);Q(21,4,leaf);Q(19,4,leaf);
+  const flw=Math.floor(t/8)%3;if(flw===0)Q(20,4,"#CE93D8");if(flw===1)Q(20,4,"#FFF176");if(flw===2)Q(20,4,"#EF9A9A");
+  [[13,4],[14,4],[15,4],[16,4],[17,4],[12,5],[18,5],[12,6],[18,6],[13,5],[14,5],[15,5],[16,5],[17,5]].forEach(([x,y])=>Q(x,y,hood));
+  [[13,6],[14,6],[15,6],[16,6],[17,6],[13,7],[17,7],[13,8],[14,8],[15,8],[16,8],[17,8],[14,9],[15,9],[16,9]].forEach(([x,y])=>Q(x,y,skin));
+  Q(14,7,"#3E2723");Q(16,7,"#3E2723");Q(15,9,"#F48FB1");
+  for(let y=10;y<=20;y++)for(let x=11+(y>16?1:0);x<=18-(y>16?1:0);x++)Q(x,y,robe);
+  [[12,14],[13,14],[14,14],[15,14],[16,14],[17,14],[18,14]].forEach(([x,y])=>Q(x,y,leaf));[[13,10],[14,10],[15,10],[16,10],[17,10]].forEach(([x,y])=>Q(x,y,gold));
+  const lf=Math.floor(t/12)%3;if(lf===0){Q(9,8,leaf);Q(10,12,leaf)}if(lf===1){Q(8,10,"#A5D6A7");Q(9,14,leaf)}if(lf===2){Q(10,7,flower);Q(9,11,leaf)}
+}
+function drawGuardAngel(ctx,t){
+  ctx.clearRect(0,0,80,80);const sc=2.5,skin="#FDDBB4",armor="#90CAF9",wing1="#E3F2FD",wing2="#BBDEFB",gold="#FFD700",sword="#E0E0E0";
+  const Q=(x,y,c)=>P(ctx,x,y,c,sc);const bob=Math.floor(t/18)%2;
+  [[13,2],[14,2],[15,2],[16,2],[17,2]].forEach(([x,y])=>Q(x,y+bob,gold));
+  [[6,8],[7,8],[7,7],[8,7],[8,6],[9,6],[22,6],[23,6],[23,7],[24,7],[24,8],[25,8]].forEach(([x,y])=>Q(x,y,wing1));
+  [[6,9],[7,9],[7,10],[8,10],[8,11],[22,11],[23,10],[23,9],[24,9],[25,9]].forEach(([x,y])=>Q(x,y,wing2));
+  [[6,12],[7,12],[8,12],[22,12],[23,12],[24,12]].forEach(([x,y])=>Q(x,y,wing1));
+  [[13,5],[14,5],[15,5],[16,5],[17,5],[13,6],[17,6],[13,7],[14,7],[15,7],[16,7],[17,7],[14,8],[15,8],[16,8]].forEach(([x,y])=>Q(x,y,skin));
+  Q(14,6,"#1A237E");Q(16,6,"#1A237E");Q(15,8,"#E91E63");
+  for(let y=9;y<=17;y++)for(let x=12+(y>14?1:0);x<=18-(y>14?1:0);x++)Q(x,y,armor);
+  [[14,9],[15,9],[16,9],[13,11],[17,11],[14,13],[16,13]].forEach(([x,y])=>Q(x,y,gold));
+  for(let y=8;y<=16;y++)Q(19,y,sword);Q(18,8,gold);Q(20,8,gold);Q(19,7,gold);
+  [[10,11],[11,11],[10,12],[11,12],[10,13],[11,13]].forEach(([x,y])=>Q(x,y,armor));Q(10,12,gold);
+  const sp=Math.floor(t/8)%4;[[9,6],[21,6],[8,14],[22,14]].forEach(([x,y],i)=>{if(i===sp)Q(x,y,"#FFF")});
+}
+function drawNuwa(ctx,t){
+  ctx.clearRect(0,0,80,80);const sc=2.5,skin="#F4C98A",robe="#E91E63",s1="#F06292",s2="#CE93D8",gold="#FFD700",jade="#69F0AE",crown="#FF80AB";
+  const Q=(x,y,c)=>P(ctx,x,y,c,sc);const pulse=.3+.35*Math.sin(t*.05);
+  ctx.globalAlpha=pulse;ctx.fillStyle="#F48FB1";ctx.beginPath();ctx.arc(40,18,20,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+  const wave=Math.floor(t/10)%3;for(let y=16;y<=24;y++){const off=[0,1,-1][wave%3];Q(14+off,y,s1);Q(15+off,y,s2);Q(16+off,y,s1)}
+  [[13,2],[14,2],[15,2],[16,2],[17,2],[14,3],[16,3],[15,1]].forEach(([x,y])=>Q(x,y,crown));Q(15,1,gold);Q(14,3,jade);Q(16,3,jade);
+  [[13,4],[14,4],[15,4],[16,4],[17,4],[13,5],[17,5],[13,6],[14,6],[15,6],[16,6],[17,6],[14,7],[15,7],[16,7],[14,8],[15,8],[16,8]].forEach(([x,y])=>Q(x,y,skin));
+  Q(14,6,"#4A235A");Q(16,6,"#4A235A");Q(15,8,"#E91E63");
+  for(let y=9;y<=16;y++)for(let x=12;x<=18;x++)Q(x,y,robe);
+  [[13,9],[14,9],[15,9],[16,9],[17,9]].forEach(([x,y])=>Q(x,y,gold));[[11,10],[11,11],[11,12],[19,10],[19,11],[19,12]].forEach(([x,y])=>Q(x,y,skin));
+  const stone=["#FF5722","#4CAF50","#2196F3","#FFD700","#9C27B0"][Math.floor(t/15)%5];Q(10,9,stone);Q(11,9,stone);
+  const sp=Math.floor(t/6)%5;[[8,5],[9,12],[21,7],[22,13],[15,2]].forEach(([x,y],i)=>{if(i===sp)Q(x,y,["#FF5722","#4CAF50","#2196F3","#FFD700","#9C27B0"][i])});
+}
+
+// ── CLEANSING ─────────────────────────────────────────────────────────────────
+function drawSkull(ctx,x,y,sc){
+  const P2=(px,py,c)=>{ctx.fillStyle=c;ctx.fillRect(x+px*sc,y+py*sc,sc,sc)};
+  [[1,0],[2,0],[3,0],[0,1],[4,1],[0,2],[4,2],[0,3],[1,3],[2,3],[3,3],[4,3],[1,4],[3,4],[1,5],[2,5],[3,5]].forEach(([px,py])=>P2(px,py,"#F5F5F5"));
+  [[1,1],[2,1],[3,1],[1,2],[2,2],[3,2]].forEach(([px,py])=>P2(px,py,"#ECEFF1"));
+  P2(1,2,"#333");P2(3,2,"#333");P2(2,4,"#bbb");
+}
+function drawFire(ctx,x,y,t,sc){
+  const f=Math.floor(t/3)%4;
+  const fp=[[[1,3],[2,2],[3,3],[2,3],[1,2],[3,2],[2,1]],[[1,3],[2,3],[3,3],[1,2],[3,2],[2,2],[2,1],[1,1]],[[1,3],[2,3],[3,3],[2,2],[1,2],[3,1],[2,1]],[[1,3],[2,3],[3,3],[1,2],[2,2],[3,2],[2,1],[3,1]]];
+  fp[f].forEach(([px,py],i)=>{ctx.fillStyle=["#FF5722","#FF9800","#FFEB3B","#FF7043"][i%4];ctx.fillRect(x+px*sc,y+py*sc,sc,sc)});
+}
+function drawClean(){
+  const canvas=document.getElementById("cleanCanvas");if(!canvas)return;
+  const ctx=canvas.getContext("2d");ctx.imageSmoothingEnabled=false;ctx.clearRect(0,0,200,120);
+  const count=Math.min(todayCount(),8);const sub=document.getElementById("cleanSub");
+  if(cleanPhase<60){
+    if(sub)sub.textContent="召唤今日之怒...";
+    for(let i=0;i<count;i++){const progress=Math.min(1,cleanPhase/40);drawSkull(ctx,10+i*22,60-progress*50,3)}
+  }else if(cleanPhase<120){
+    if(sub)sub.textContent="🔥 火焰净化中...";
+    const fp=cleanPhase-60;
+    for(let i=0;i<count;i++){const ratio=Math.max(0,1-fp/60-i*.08);if(ratio>.1){ctx.globalAlpha=ratio;drawSkull(ctx,10+i*22,10,3);ctx.globalAlpha=1}drawFire(ctx,10+i*22,15,tick,3)}
+    for(let s=0;s<5;s++){ctx.fillStyle=["#FFD700","#FF5722","#FFF"][s%3];ctx.fillRect((s*37+tick*3)%190,(s*23+tick*2)%100,2,2)}
+  }else{
+    if(sub)sub.textContent="✨ 愤怒已化为星光 ✨";
+    const sp=cleanPhase-120;
+    for(let s=0;s<24;s++){ctx.fillStyle=["#FFD700","#E040FB","#00E5FF","#FFF","#69F0AE"][s%5];ctx.fillRect((s*13+sp*2)%190,(s*7+sp)%100,sp>30?4:2,sp>30?4:2)}
+    ctx.fillStyle="#FFD700";ctx.font="8px 'Press Start 2P',monospace";ctx.fillText("✨ PURIFIED ✨",22,65);
+  }
+}
+
+// ── MODE ──────────────────────────────────────────────────────────────────────
+function setMode(m){
+  mode=m;
+  document.getElementById("idleWrap").style.display=m==="idle"?"block":"none";
+  document.getElementById("soothPanel").style.display=m==="soothing"?"block":"none";
+  document.getElementById("cleanPanel").style.display=m==="cleansing"?"block":"none";
+  document.getElementById("donePanel").style.display=m==="done"?"block":"none";
+  document.getElementById("historyPanel").style.display=m==="history"?"block":"none";
+  document.getElementById("cleanBtn").style.display=(m==="idle"||m==="soothing"||m==="done")&&todayCount()>0?"inline-block":"none";
+  document.getElementById("resetBtn").style.display=m==="done"?"inline-block":"none";
+  if(m==="done")document.getElementById("doneSub").innerHTML=`今日 ${todayCount()} 次怒火<br>已全部化为闪光记录<br>你很勇敢，你值得平静`;
+  if(m==="history")renderHistory();
+}
+
+function startCleansing(){
+  if(todayCount()===0)return;setMode("cleansing");cleanPhase=0;
+  if(cleanTimer)clearInterval(cleanTimer);
+  cleanTimer=setInterval(()=>{cleanPhase++;if(cleanPhase>200){clearInterval(cleanTimer);setMode("done")}},30);
+}
+function resetDay(){
+  delete angerLog[today()];
+  saveToCloud(angerLog);
+  updateStats();setMode("idle");
+}
+function toggleHistory(){
+  if(mode==="history")setMode("idle");
+  else{mode="history";document.getElementById("historyPanel").style.display="block";renderHistory()}
+}
+function renderHistory(){
+  const m=thisMonth();document.getElementById("histTitle").textContent=m+" · 本月怒气地图";
+  const days=Object.entries(angerLog).filter(([k])=>k.startsWith(m)).sort(([a],[b])=>a.localeCompare(b));
+  const container=document.getElementById("histDays");container.innerHTML="";
+  if(!days.length)container.innerHTML='<span style="font-size:8px;color:#555">本月暂无记录</span>';
+  else days.forEach(([d,v])=>{
+    const el=document.createElement("div");
+    el.className="hist-day"+(v>0?" red":"")+(d===today()?" gold":"");
+    el.title=d+": "+v+"次";el.textContent=d.slice(8)+"日"+(v>0?" ×"+v:"");
+    container.appendChild(el);
+  });
+  document.getElementById("histFooter").textContent="月累计："+monthCount()+"次";
+}
+function updateStats(){
+  document.getElementById("todayCount").textContent=todayCount();
+  document.getElementById("monthCount").textContent=monthCount();
+  const cb=document.getElementById("cleanBtn");
+  if(cb)cb.style.display=(mode==="idle"||mode==="soothing"||mode==="done")&&todayCount()>0?"inline-block":"none";
+}
+
+initLogin();
+</script>
+</body>
+</html>
