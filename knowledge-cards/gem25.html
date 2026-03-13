@@ -3,102 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>跨界百科全书·挑战版</title>
+    <title>星战百科·像素挑战</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #8b5cf6; --bg: #030712; --card: rgba(30, 41, 59, 0.7);
-            --text: #f8fafc; --success: #10b981; --error: #ef4444;
+            /* 星战经典配色 */
+            --retro-yellow: #ffe81f; /* 经典片头黄 */
+            --retro-blue: #2e67f8;   /* 军刀蓝 */
+            --retro-red: #f82e2e;    /* 帝国红 */
+            --bg-dark: #000000;      /* 宇宙深黑 */
+            --panel-bg: rgba(20, 20, 30, 0.8); /* 终端面板色 */
+            --text-main: #f8fafc;
         }
+
         body { 
-            font-family: 'PingFang SC', system-ui, sans-serif; 
-            background: radial-gradient(circle at top right, #1e1b4b, #030712);
-            color: var(--text); display: flex; justify-content: center; align-items: center; 
+            font-family: 'VT323', 'PingFang SC', monospace; 
+            /* 背景换成更有质感的繁星背景 */
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px),
+                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 2px),
+                radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 3px);
+            background-size: 550px 550px, 350px 350px, 250px 250px;
+            background-position: 0 0, 40px 60px, 130px 270px;
+            color: var(--text-main); display: flex; justify-content: center; align-items: center; 
             min-height: 100vh; margin: 0; overflow-x: hidden;
+            image-rendering: pixelated; /* 关键：强制浏览器使用像素渲染 */
         }
+
+        /* 复古像素边框样式 */
+        .pixel-border {
+            border: 4px solid var(--retro-yellow);
+            /* 使用 box-shadow 模拟像素风格的内外阴影，使其看起来更像16位游戏 */
+            box-shadow: 
+                inset -4px -4px 0 0 #888, 
+                inset 4px 4px 0 0 #fff,
+                4px 4px 0 0 #000;
+            background: var(--panel-bg);
+            border-radius: 0; /* 像素风不需要圆角 */
+        }
+
         #quiz-container { 
-            background: var(--card); backdrop-filter: blur(15px); padding: 2rem; 
-            border-radius: 2rem; width: 90%; max-width: 500px; 
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);
+            padding: 2rem; 
+            width: 90%; max-width: 480px; 
             position: relative;
+            box-sizing: border-box;
         }
-        /* 顶部状态栏 */
-        .status-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-        .score-tag { background: var(--primary); padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; }
+
+        /* 顶部状态栏：更有终端感 */
+        .status-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 2px solid var(--retro-blue); padding-bottom: 5px;}
+        .score-tag { color: var(--retro-yellow); font-size: 1.2rem; }
         
         .img-box { 
-            width: 100%; height: 200px; background: #1e293b; border-radius: 1.2rem; 
+            width: 100%; height: 180px; background: #1a1a1a; 
             margin-bottom: 1.5rem; overflow: hidden; position: relative;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
+            border: 2px solid #555;
         }
-        .img-box img { width: 100%; height: 100%; object-fit: cover; }
+        .img-box img { width: 100%; height: 100%; object-fit: cover; filter: contrast(120%) brightness(90%); }
         
-        /* 连击特效 */
+        /* 连击特效：更复古的霓虹闪烁 */
         #combo-wrap { 
-            position: absolute; top: -10px; right: -10px; transform: rotate(15deg);
-            background: #f59e0b; color: #000; padding: 5px 15px; border-radius: 10px;
-            font-weight: 900; display: none; z-index: 10; animation: bounce 0.4s infinite alternate;
+            position: absolute; top: -15px; right: -15px; transform: rotate(10deg);
+            background: var(--retro-red); color: #fff; padding: 4px 10px;
+            font-weight: bold; font-size: 1.1rem; display: none; z-index: 10; 
+            border: 2px solid #fff;
+            animation: combo-blink 0.5s infinite;
         }
 
-        .progress-bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin: 0.5rem 0 1.5rem; }
-        #progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s linear; }
+        /* 计时器：模仿红石/终端数码管 */
+        .timer-zone { font-size: 1.2rem; color: var(--retro-red); font-family: monospace; }
 
-        .question-text { font-size: 1.2rem; font-weight: 600; line-height: 1.5; margin-bottom: 1.5rem; min-height: 3.6rem; }
-        .options { display: grid; gap: 0.8rem; }
+        /* 问题文本：加大字号 */
+        .question-text { font-size: 1.5rem; line-height: 1.3; margin-bottom: 1.5rem; min-height: 4rem; color: #fff; text-shadow: 1px 1px 0 #000; }
+        
+        .options { display: grid; gap: 10px; }
+        
+        /* 选项按钮：重构为像素按钮样式 */
         .option-btn { 
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); 
-            color: white; padding: 1rem; border-radius: 1rem; cursor: pointer; 
-            text-align: left; transition: all 0.2s; font-size: 1rem;
+            background: #222; border: 4px solid #444; 
+            color: #ccc; padding: 12px; cursor: pointer; 
+            text-align: left; transition: none; font-size: 1.2rem;
+            font-family: 'VT323', monospace;
+            box-shadow: inset -2px -2px 0 0 #111, inset 2px 2px 0 0 #666;
+            position: relative;
         }
-        .option-btn:hover:not(:disabled) { background: rgba(255,255,255,0.15); border-color: var(--primary); }
-        .correct { background: var(--success) !important; border-color: #fff; box-shadow: 0 0 15px var(--success); }
-        .wrong { background: var(--error) !important; opacity: 0.7; }
+        .option-btn:hover:not(:disabled) { background: #333; border-color: var(--retro-blue); color: #fff; }
+        .option-btn:active:not(:disabled) { top: 2px; box-shadow: inset 2px 2px 0 0 #111, inset -2px -2px 0 0 #666; }
+
+        /* 正确/错误状态 */
+        .correct { background: var(--success) !important; border-color: #fff !important; color: #000 !important; text-shadow: none; box-shadow: inset -2px -2px 0 0 #0a0, inset 2px 2px 0 0 #e0ffe0;}
+        .wrong { background: var(--retro-red) !important; border-color: #fff !important; color: #fff !important; opacity: 1; box-shadow: inset -2px -2px 0 0 #800, inset 2px 2px 0 0 #ff9090;}
+        
         .hidden { display: none; }
         
-        @keyframes bounce { from { transform: rotate(15deg) scale(1); } to { transform: rotate(15deg) scale(1.1); } }
+        /* 开始屏幕特殊样式：模仿片头黄字 */
+        #start-screen h1 { 
+            color: var(--retro-yellow); 
+            font-size: 2.8rem; 
+            text-transform: uppercase; 
+            margin-bottom: 0;
+            text-shadow: 2px 2px 0 #880, 4px 4px 0 #000;
+        }
+        #start-screen p { color: #888; font-size: 1.1rem; margin-top: 5px; margin-bottom: 2rem; }
+
+        /* 结果屏幕特殊样式 */
+        .score-num { font-size: 5rem; color: var(--retro-yellow); text-shadow: 3px 3px 0 #000; margin: 10px 0; }
+
+        @keyframes combo-blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        
+        /* 去掉原本的圆柱形进度条，只保留数字计时 */
+        .progress-bar { display: none; }
     </style>
 </head>
 <body>
 
-<div id="quiz-container">
-    <div id="combo-wrap">COMBO × <span id="combo-num">0</span></div>
+<div id="quiz-container" class="pixel-border">
+    <div id="combo-wrap">COMBO x<span id="combo-num">0</span></div>
 
     <div id="start-screen" style="text-align: center;">
-        <h1 style="margin-bottom: 0.5rem; letter-spacing: 2px;">百科全书·挑战</h1>
-        <p style="color: #94a3b8; margin-bottom: 2rem;">50题跨界随机混抽 · 考查脑回路深度</p>
-        <button class="option-btn" style="width: 100%; text-align: center; background: var(--primary);" onclick="initGame()">进入随机挑战</button>
+        <h1>百科全书</h1>
+        <p>RETR0 QU1Z CHALLENGE</p>
+        <button class="option-btn" style="width: 100%; text-align: center; background: #000; border-color: var(--retro-yellow); color: var(--retro-yellow); font-size: 1.5rem;" onclick="initGame()">[ 开始挑战 ]</button>
     </div>
 
     <div id="game-screen" class="hidden">
         <div class="status-header">
-            <span id="cat-label" style="color: #a78bfa; font-weight: bold;">【分类】</span>
-            <div class="score-tag">得分: <span id="live-score">0</span></div>
+            <span id="cat-label">【SYSTEM】</span>
+            <div class="score-tag">SCORE: <span id="live-score">0</span></div>
         </div>
         
-        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #64748b;">
+        <div style="display: flex; justify-content: space-between; font-size: 1rem; color: #64748b; margin-bottom: 10px;">
             <span id="prog-label">1/50</span>
-            <span>⏱ <span id="timer-text">15</span>s</span>
+            <span class="timer-zone">T-MINUS: <span id="timer-text">15</span>s</span>
         </div>
-        <div class="progress-bar"><div id="progress-fill"></div></div>
         
-        <div class="img-box">
-            <img id="q-img" src="" alt="题目图片">
-        </div>
-
-        <div class="question-text" id="q-text">加载中...</div>
+        <div class="img-box"><img id="q-img" src="" alt="题目图片"></div>
+        <div class="question-text" id="q-text">LOADING...</div>
         <div class="options" id="opt-box"></div>
     </div>
 
     <div id="result-screen" class="hidden" style="text-align: center;">
-        <h2>挑战结束</h2>
-        <div style="font-size: 1rem; color: #94a3b8;">你的最终得分</div>
-        <div class="score-num" id="final-score" style="font-size: 4rem; font-weight: 800; color: var(--primary);">0</div>
-        <p id="rank-msg" style="font-size: 1.2rem; margin-top: 1rem;"></p>
-        <button class="option-btn" style="margin-top: 2rem; width: 100%; text-align: center;" onclick="location.reload()">再来一局（题目重新打乱）</button>
+        <h2 style="color: var(--retro-blue);">MISSION COMPLETE</h2>
+        <div style="font-size: 1rem; color: #888;">FINAL SCORE</div>
+        <div class="score-num" id="final-score">0</div>
+        <p id="rank-msg" style="font-size: 1.3rem; color: #fff; min-height: 3rem;"></p>
+        <button class="option-btn" style="margin-top: 2rem; width: 100%; text-align: center; border-color: var(--retro-blue); color: var(--retro-blue);" onclick="location.reload()">[ 重新开启 ]</button>
     </div>
 </div>
 
 <script>
-   // --- 生物与人体 (1-10) ---
+// 这里是修正后的 50 题数据 (rawDb)，没有任何变化，保持逻辑一致
+const rawDb = [
+    // --- 生物与人体 (1-10) ---
     { q: "婴儿出生时约有300块骨头，成年后约为？", a: ["206块", "250块", "180块"], c: 0, cat: "生物", img: "https://images.unsplash.com/photo-1530210124550-912dc1381cb8?w=600" },
     { q: "人体最大的器官是什么？", a: ["肝脏", "皮肤", "小肠"], c: 1, cat: "生物", img: "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=600" },
     { q: "DNA双螺旋结构中，与腺嘌呤(A)配对的是？", a: ["胞嘧啶", "鸟嘌呤", "胸腺嘧啶"], c: 2, cat: "生物", img: "https://images.unsplash.com/photo-1530026405186-ed1f139313f8?w=600" },
@@ -159,7 +215,6 @@
     { q: "世界第一长河是？", a: ["尼罗河", "亚马逊河", "长江"], c: 0, cat: "常识", img: "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=600" }
 ];
 
-// 复制一份数据以便打乱
 let quizDb = [...rawDb];
 let cur = 0; 
 let totalScore = 0; 
@@ -168,7 +223,6 @@ let lock = false;
 let timer;
 let timeLeft = 15;
 
-// Fisher-Yates 洗牌算法
 function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -177,7 +231,7 @@ function shuffle(array) {
 }
 
 function initGame() {
-    shuffle(quizDb); // 随机打乱题目顺序
+    shuffle(quizDb);
     document.getElementById('start-screen').classList.add('hidden');
     document.getElementById('game-screen').classList.remove('hidden');
     render();
@@ -185,38 +239,35 @@ function initGame() {
 
 function render() {
     if(cur >= quizDb.length) return showResult();
-    
     lock = false;
     timeLeft = 15;
     const data = quizDb[cur];
     
-    // 更新界面
     document.getElementById('q-text').innerText = data.q;
-    document.getElementById('cat-label').innerText = `【${data.cat}】`;
-    document.getElementById('prog-label').innerText = `${cur + 1} / ${quizDb.length}`;
+    // 终端风格的分类显示
+    document.getElementById('cat-label').innerText = `> ${data.cat.toUpperCase()}_UNIT`;
+    document.getElementById('prog-label').innerText = `SECT_${cur + 1}/${quizDb.length}`;
     document.getElementById('q-img').src = data.img;
     document.getElementById('timer-text').innerText = timeLeft;
-    document.getElementById('progress-fill').style.width = '100%';
 
     const box = document.getElementById('opt-box');
     box.innerHTML = '';
     data.a.forEach((t, i) => {
         const b = document.createElement('button');
         b.className = 'option-btn';
-        b.innerText = t;
+        b.innerText = `[ ${t} ]`; // 像素风按钮文本格式
         b.onclick = () => check(i, b);
         box.appendChild(b);
     });
 
-    // 启动计时器
     clearInterval(timer);
     timer = setInterval(() => {
         timeLeft--;
         document.getElementById('timer-text').innerText = timeLeft;
-        document.getElementById('progress-fill').style.width = `${(timeLeft/15)*100}%`;
+        // 像素风去掉了进度条动画，专注于数字计时
         if(timeLeft <= 0) {
             clearInterval(timer);
-            check(-1, null); // 时间到，强制进入下一题
+            check(-1, null);
         }
     }, 1000);
 }
@@ -224,28 +275,22 @@ function render() {
 function check(idx, btn) {
     if(lock) return; lock = true;
     clearInterval(timer);
-    
     const correctIdx = quizDb[cur].c;
     const btns = document.querySelectorAll('.option-btn');
     
     if(idx === correctIdx) {
-        // 答对了
         combo++;
         btn.classList.add('correct');
-        // 计分公式：基础10分 + 连击加成 + 时间奖励
         let gain = 10 + (combo * 2) + timeLeft;
         totalScore += gain;
         updateCombo();
     } else {
-        // 答错了或超时
         combo = 0;
         updateCombo();
         if(btn) btn.classList.add('wrong');
         btns[correctIdx].classList.add('correct');
     }
-
-    document.getElementById('live-score').innerText = totalScore;
-
+    document.getElementById('live-score').innerText = totalScore.toString().padStart(5, '0'); // 得分补零，更有复古感
     setTimeout(() => {
         cur++;
         render();
@@ -268,10 +313,10 @@ function showResult() {
     document.getElementById('final-score').innerText = totalScore;
     
     let rank;
-    if(totalScore > 800) rank = "知识战神：你简直是行走的百科全书！";
-    else if(totalScore > 500) rank = "跨界奇才：大部分领域都难不倒你。";
-    else if(totalScore > 200) rank = "潜力股：知识面还可以更宽一点。";
-    else rank = "纯真少年：建议多看看外面的世界。";
+    if(totalScore > 800) rank = "绝地大师：原力与你同在！";
+    else if(totalScore > 500) rank = "共和国精英：合格的战士。";
+    else if(totalScore > 200) rank = "赏金猎人：还需要更多悬赏练习。";
+    else rank = "塔图因农夫：建议去欧比旺那里充充电。";
     
     document.getElementById('rank-msg').innerText = rank;
 }
