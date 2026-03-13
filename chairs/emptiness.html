@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>存在与空虚：哲学家抢椅子</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background: #f0f0f0; font-family: "Microsoft YaHei", sans-serif;
+        }
+        #game-container {
+            position: relative; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        #bg-image {
+            max-width: 100%; max-height: 80vh; transition: opacity 0.5s ease;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        #ui-layer {
+            position: absolute; bottom: 10%; width: 80%;
+            background: rgba(255, 255, 255, 0.9); padding: 20px;
+            border-radius: 10px; text-align: center; border: 2px solid #333;
+        }
+        .btn {
+            padding: 10px 20px; margin: 10px; cursor: pointer;
+            background: #333; color: white; border: none; border-radius: 5px;
+            transition: 0.3s;
+        }
+        .btn:hover { background: #555; }
+        #status { font-style: italic; color: #666; margin-bottom: 10px; }
+        #dialogue { font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <img id="bg-image" src="image_78213f.png" alt="游戏场景">
+
+    <div id="ui-layer">
+        <div id="status">宇宙起初是一片虚无...</div>
+        <div id="dialogue">这里只有一把塑料椅子。你存在吗？</div>
+        <div id="controls">
+            <button class="btn" onclick="nextStep()">我坐，故我在</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 游戏状态管理
+    let stage = 0;
+    const imgDisplay = document.getElementById('bg-image');
+    const dialogue = document.getElementById('dialogue');
+    const statusText = document.getElementById('status');
+    const controls = document.getElementById('controls');
+
+    // 图片资源映射 (请确保文件名正确)
+    const assets = {
+        emptyChairWhite: 'image_78213f.png', // 只有椅子的白底图
+        manOnChairWhite: 'image_78215a.png', // 哲学家坐在白底椅子上
+        emptyChairGrass: 'image_78211d.jpg', // 只有椅子的草地图
+        manOnChairGrass: 'image_782124.jpg'  // 哲学家坐在草地椅子上
+    };
+
+    function nextStep() {
+        stage++;
+        updateGame();
+    }
+
+    function updateGame() {
+        switch(stage) {
+            case 1:
+                imgDisplay.src = assets.manOnChairWhite;
+                statusText.innerText = "确证阶段：第一层现实";
+                dialogue.innerText = "你坐下了。沉重的肉身赋予了虚无某种意义。";
+                controls.innerHTML = `<button class="btn" onclick="nextStep()">观察四周</button>`;
+                break;
+            
+            case 2:
+                imgDisplay.src = assets.emptyChairGrass;
+                statusText.innerText = "幻象阶段：欲望的草地";
+                dialogue.innerText = "世界突然变得丰富，有了草地和鸟。但你却感到一阵空虚，你站了起来。";
+                controls.innerHTML = `<button class="btn" onclick="nextStep()">重新夺回座位</button>`;
+                break;
+
+            case 3:
+                imgDisplay.src = assets.manOnChairGrass;
+                statusText.innerText = "冲突阶段：社会契约";
+                dialogue.innerText = "一个路过的虚无主义者试图抢走你的椅子！";
+                controls.innerHTML = `
+                    <button class="btn" onclick="debate()">用哲学辩论</button>
+                    <button class="btn" onclick="fight()">用物理驱赶</button>
+                `;
+                break;
+            
+            case 4:
+                // 结局
+                statusText.innerText = "终局：永恒的回返";
+                dialogue.innerText = "椅子终会烂掉，草地终会枯萎。你在这把29块9的椅子上悟到了宇宙的终极真理。";
+                controls.innerHTML = `<button class="btn" onclick="location.reload()">重新进入轮回</button>`;
+                break;
+        }
+    }
+
+    function debate() {
+        dialogue.innerText = "你告诉他：‘椅子只是感官的幻觉。’ 对手陷入了深思，羞愧地离开了。";
+        controls.innerHTML = `<button class="btn" onclick="nextStep()">继续思考</button>`;
+    }
+
+    function fight() {
+        dialogue.innerText = "你挥舞着拳头，但这并不符合哲学家的身份。你感到一阵偏头痛。";
+        controls.innerHTML = `<button class="btn" onclick="nextStep()">勉强坐稳</button>`;
+    }
+
+</script>
+
+</body>
+</html>
