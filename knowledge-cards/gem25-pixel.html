@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>星战百科·像素全题库版</title>
+    <title>星战百科·Agent精准配图版</title>
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -17,7 +17,7 @@
             background-image: radial-gradient(#fff 1px, transparent 1px);
             background-size: 50px 50px; color: #fff;
             display: flex; justify-content: center; align-items: center; 
-            min-height: 100vh; margin: 0; overflow: hidden;
+            min-height: 100vh; margin: 0; overflow-x: hidden;
         }
 
         .pixel-border {
@@ -29,21 +29,20 @@
         .status-header { display: flex; justify-content: space-between; border-bottom: 4px solid #333; padding-bottom: 10px; margin-bottom: 15px; }
         .score-num { color: var(--retro-yellow); font-size: 1.5rem; }
 
-        /* 图片显示区域：强制像素化 */
         .img-box { 
-            width: 100%; height: 180px; background: #111; border: 2px solid #444;
+            width: 100%; height: 160px; background: #111; border: 2px solid #444;
             display: flex; justify-content: center; align-items: center; margin-bottom: 15px;
         }
         .img-box img { 
-            height: 90%; image-rendering: pixelated; 
+            height: 80%; image-rendering: pixelated; filter: invert(1); /* 像素图标多为黑色，反转成白色适配深色背景 */
             transition: opacity 0.2s;
         }
 
-        .question-text { font-size: 1.4rem; min-height: 3.5rem; margin-bottom: 15px; color: #eee; }
+        .question-text { font-size: 1.3rem; min-height: 3.5rem; margin-bottom: 15px; color: #eee; line-height: 1.2; }
         
         .option-btn { 
             background: #000; border: 2px solid #fff; color: #fff; padding: 12px;
-            font-family: 'VT323', monospace; font-size: 1.2rem; cursor: pointer;
+            font-family: 'VT323', monospace; font-size: 1.1rem; cursor: pointer;
             width: 100%; text-align: left; margin-bottom: 8px;
         }
         .option-btn:hover { background: var(--retro-blue); color: #fff; }
@@ -67,134 +66,128 @@
     <div id="combo-wrap" class="hidden">COMBO x<span id="combo-num">0</span></div>
 
     <div id="start-screen" style="text-align: center;">
-        <h1 style="color: var(--retro-yellow); font-size: 3.5rem; margin: 0;">DATA BANK</h1>
-        <p style="letter-spacing: 2px; color: #888;">PRESS START TO INITIALIZE</p>
-        <button class="option-btn" style="text-align: center; margin-top: 2rem;" onclick="initGame()">[ START MISSION ]</button>
+        <h1 style="color: var(--retro-yellow); font-size: 3rem; margin: 0;">ENCYCLOPEDIA</h1>
+        <p style="letter-spacing: 2px; color: #888;">80 DATA NODES DETECTED</p>
+        <button class="option-btn" style="text-align: center; margin-top: 2rem;" onclick="initGame()">[ INITIALIZE ]</button>
     </div>
 
     <div id="game-screen" class="hidden">
         <div class="status-header">
-            <div style="color: var(--retro-blue);"><span id="cat-icon"></span> <span id="cat-label">UNIT</span></div>
+            <div style="color: var(--retro-blue);">CORE_UNIT: <span id="cat-label">SCANNING</span></div>
             <div class="score-num">PTS:<span id="live-score">0000</span></div>
         </div>
         <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
             <span id="prog-label">01/80</span>
-            <span class="timer-text">REMAINING: <span id="timer-val">15</span>S</span>
+            <span class="timer-text">TIME: <span id="timer-val">15</span>S</span>
         </div>
-        <div class="img-box"><img id="q-img" src="" alt="Pixel Target"></div>
+        <div class="img-box"><img id="q-img" src="" alt="Icon"></div>
         <div class="question-text" id="q-text">LOADING...</div>
         <div id="opt-box"></div>
     </div>
 
     <div id="result-screen" class="hidden" style="text-align: center;">
         <h2 id="rank-title" style="color: var(--retro-yellow); font-size: 2.5rem;">MISSION OVER</h2>
-        <div style="font-size: 1.5rem;">SCORE: <span id="final-score">0</span></div>
+        <div style="font-size: 1.5rem;">TOTAL SCORE: <span id="final-score">0</span></div>
         <p id="rank-msg" style="margin: 20px 0; color: #888;"></p>
-        <button class="option-btn" style="text-align: center;" onclick="location.reload()">[ REBOOT SYSTEM ]</button>
+        <button class="option-btn" style="text-align: center;" onclick="location.reload()">[ REBOOT ]</button>
     </div>
 </div>
 
 <script>
-// 每一道题都手动配置了 pk (Pixel Key)，API 会根据这个词生成特定像素图
 const db = [
-    { q: "婴儿出生时约有300块骨头，成年后约为？", a: ["206块", "250块", "180块"], c: 0, cat: "生物", pk: "human skeleton" },
-    { q: "人体最大的器官是什么？", a: ["肝脏", "皮肤", "小肠"], c: 1, cat: "生物", pk: "human skin anatomy" },
-    { q: "DNA双螺旋结构中，与腺嘌呤(A)配对的是？", a: ["胞嘧啶", "鸟嘌呤", "胸腺嘧啶"], c: 2, cat: "生物", pk: "DNA double helix" },
-    { q: "哪种血型被称为“万能受血者”？", a: ["O型", "AB型", "B型"], c: 1, cat: "生物", pk: "blood type AB" },
-    { q: "大脑中负责记忆和导航的部位是？", a: ["海马体", "杏仁核", "下丘脑"], c: 0, cat: "生物", pk: "brain hippocampus" },
-    { q: "人体内最坚硬的物质是？", a: ["骨骼", "牙釉质", "指甲"], c: 1, cat: "生物", pk: "tooth enamel" },
-    { q: "成年人全身血液循环一周大约需要多久？", a: ["20秒", "1分钟", "5分钟"], c: 1, cat: "生物", pk: "heart blood circulation" },
-    { q: "细胞的“动力工厂”通常指？", a: ["细胞核", "线粒体", "溶酶体"], c: 1, cat: "生物", pk: "mitochondria" },
-    { q: "阳光照射皮肤主要合成哪种维生素？", a: ["维生素A", "维生素C", "维生素D"], c: 2, cat: "生物", pk: "sun vitamin D" },
-    { q: "唯一能产生乳汁的动物类别是？", a: ["爬行动物", "哺乳动物", "鸟类"], c: 1, cat: "生物", pk: "mammal cow" },
-    { q: "绝对零度对应的摄氏度是多少？", a: ["0°C", "-273.15°C", "-100°C"], c: 1, cat: "物理", pk: "absolute zero ice" },
-    { q: "周期表中原子序数为1的元素是？", a: ["氦", "锂", "氢"], c: 2, cat: "化学", pk: "hydrogen atom" },
-    { q: "质能方程 E=mc² 中的 c 代表？", a: ["质量", "光速", "能量"], c: 1, cat: "物理", pk: "light speed" },
-    { q: "声音在真空中能传播吗？", a: ["能", "不能", "取决于距离"], c: 1, cat: "物理", pk: "vacuum space" },
-    { q: "常温下唯一的液态金属是？", a: ["铝", "汞", "溴"], c: 1, cat: "化学", icon: "🧪", pk: "mercury metal" },
-    { q: "“薛定谔的猫”解释量子力学的？", a: ["纠缠", "叠加态", "跃迁"], c: 1, cat: "物理", pk: "schrodinger cat" },
-    { q: "铅笔芯的主要成分是？", a: ["铅", "石墨", "木炭"], c: 1, cat: "化学", pk: "graphite pencil" },
-    { q: "水的化学分子式是？", a: ["HO2", "H2O", "H2O2"], c: 1, cat: "化学", pk: "water molecule" },
-    { q: "万有引力的提出者是？", a: ["牛顿", "爱因斯坦", "霍金"], c: 0, cat: "物理", pk: "isaac newton apple" },
-    { q: "钻石主要由哪种元素组成？", a: ["硅", "碳", "氧"], c: 1, cat: "化学", pk: "diamond carbon" },
-    { q: "太阳系最大的行星是？", a: ["土星", "木星", "海王星"], c: 1, cat: "天文", pk: "jupiter" },
-    { q: "除太阳外离地球最近的恒星是？", a: ["北极星", "比邻星", "天狼星"], c: 1, cat: "天文", pk: "proxima centauri" },
-    { q: "马里亚纳海沟位于哪个洋？", a: ["大西洋", "太平洋", "印度洋"], c: 1, cat: "地理", pk: "mariana trench" },
-    { q: "“光年”是衡量什么的单位？", a: ["时间", "距离", "速度"], c: 1, cat: "天文", pk: "galaxy light year" },
-    { q: "大气中含量最高的气体是？", a: ["氧气", "二氧化碳", "氮气"], c: 2, cat: "天文", pk: "nitrogen air" },
-    { q: "赤道没有穿过哪个洲？", a: ["非洲", "亚洲", "欧洲"], c: 2, cat: "地理", pk: "europe map" },
-    { q: "月球绕地球一圈约为？", a: ["24小时", "27.3天", "365天"], c: 1, cat: "天文", pk: "moon orbit" },
-    { q: "地壳中含量最多的金属是？", a: ["铁", "铝", "铜"], c: 1, cat: "地理", pk: "aluminum metal" },
-    { q: "地球上跨经度最广的地区是？", a: ["赤道", "南极点/北极点", "格林威治"], c: 1, cat: "地理", pk: "south pole" },
-    { q: "冥王星现在的身份是？", a: ["行星", "矮行星", "卫星"], c: 1, cat: "天文", pk: "pluto dwarf planet" },
-    { q: "钢铁侠的真实姓名是？", a: ["布鲁斯·韦恩", "托尼·斯塔克", "史蒂夫"], c: 1, cat: "流行", pk: "iron man marvel" },
-    { q: "MBTI中“I”代表？", a: ["直觉", "内向", "判断"], c: 1, cat: "流行", pk: "introvert personality" },
-    { q: "伏地魔的真名是？", a: ["汤姆·里德尔", "斯内普", "邓布利多"], c: 0, cat: "流行", pk: "voldemort tom riddle" },
-    { q: "游戏术语“NPC”指？", a: ["非玩家角色", "国家中心", "新代码"], c: 0, cat: "流行", pk: "video game npc" },
-    { q: "开创波普艺术画玛丽莲梦露的是？", a: ["毕加索", "沃霍尔", "达利"], c: 1, cat: "流行", pk: "andy warhol pop art" },
-    { q: "赛博朋克的核心是？", a: ["高科技低生活", "蒸汽", "魔法"], c: 0, cat: "流行", pk: "cyberpunk city" },
-    { q: "比特币创始人是？", a: ["中本聪", "马斯克", "贝索斯"], c: 0, cat: "流行", pk: "bitcoin nakamoto" },
-    { q: "最著名的水管工英雄是？", a: ["林克", "马力欧", "皮卡丘"], c: 1, cat: "流行", pk: "super mario" },
-    { q: "《寄生虫》是哪国电影？", a: ["中国", "韩国", "日本"], c: 1, cat: "流行", pk: "parasite movie" },
-    { q: "TikTok 的母公司是？", a: ["腾讯", "字节跳动", "百度"], c: 1, cat: "流行", pk: "bytedance logo" },
-    { q: "扑克牌（不含王）有多少张？", a: ["52张", "54张", "48张"], c: 0, cat: "常识", pk: "poker cards" },
-    { q: "奥林匹克五环黄环代表？", a: ["欧洲", "亚洲", "非洲"], c: 1, cat: "常识", pk: "olympic rings" },
-    { q: "两河流域是指哪两河？", a: ["底格里斯/幼发拉底", "黄河/长江", "尼罗河"], c: 0, cat: "常识", pk: "mesopotamia rivers" },
-    { q: "计算机之父是？", a: ["图灵", "诺贝尔", "特斯拉"], c: 0, cat: "常识", pk: "alan turing" },
-    { q: "独角兽公司指估值超过？", a: ["1亿美金", "10亿美金", "100亿"], c: 1, cat: "常识", pk: "unicorn startup" },
-    { q: "香槟产自哪个国家？", a: ["法国", "意大利", "西班牙"], c: 0, cat: "常识", pk: "champagne wine" },
-    { q: "天空是蓝色的主因是？", a: ["折射", "散射", "反射"], c: 1, cat: "常识", pk: "blue sky rays" },
-    { q: "第一性原理是谁提出的？", a: ["亚里士多德", "孔子", "康德"], c: 0, cat: "常识", pk: "aristotle philosophy" },
-    { q: "白色污染指哪种废弃物？", a: ["纸张", "塑料", "金属"], c: 1, cat: "常识", pk: "plastic pollution" },
-    { q: "世界第一长河是？", a: ["尼罗河", "亚马逊河", "长江"], c: 0, cat: "常识", pk: "nile river" },
-    { q: "二战中代号为“霸王行动”的登陆战是？", a: ["诺曼底", "中途岛", "敦刻尔克"], c: 0, cat: "历史", pk: "normandy landing" },
-    { q: "世界上第一台通用计算机的名字是？", a: ["ENIAC", "APPLE I", "Deep Blue"], c: 0, cat: "数码", pk: "eniac computer" },
-    { q: "被称为“交响乐之父”的作曲家是？", a: ["海顿", "莫扎特", "贝多芬"], c: 0, cat: "艺术", pk: "joseph haydn" },
-    { q: "猫的胡须主要作用是？", a: ["装饰", "测量空间", "辅助呼吸"], c: 1, cat: "自然", pk: "cat whiskers" },
-    { q: "第一届现代奥运会是在哪里举行的？", a: ["雅典", "巴黎", "伦敦"], c: 0, cat: "历史", pk: "athens 1896" },
-    { q: "手机屏幕的 PPI 指的是什么？", a: ["像素密度", "处理器速度", "电池容量"], c: 0, cat: "数码", pk: "smartphone pixel" },
-    { q: "《清明上河图》描绘的是哪个朝代的景象？", a: ["唐朝", "北宋", "明朝"], c: 1, cat: "艺术", pk: "song dynasty scroll" },
-    { q: "地球上最深的湖泊是？", a: ["贝加尔湖", "里海", "死海"], c: 0, cat: "自然", pk: "lake baikal" },
-    { q: "谁发明了活字印刷术？", a: ["毕昇", "蔡伦", "张衡"], c: 0, cat: "历史", pk: "bi sheng printing" },
-    { q: "下列哪个不是编程语言？", a: ["Python", "HTML", "Safari"], c: 2, cat: "数码", pk: "computer coding" },
-    { q: "名画《戴珍珠耳环的少女》的作者是？", a: ["维米尔", "梵高", "达芬奇"], c: 0, cat: "艺术", pk: "vermeer painting" },
-    { q: "蝙蝠属于哪一类动物？", a: ["鸟类", "哺乳动物", "爬行动物"], c: 1, cat: "自然", pk: "bat flying" },
-    { q: "古埃及金字塔的主要用途是？", a: ["粮仓", "陵墓", "天文台"], c: 1, cat: "历史", pk: "egypt pyramid" },
-    { q: "“元宇宙”概念最早出自哪部小说？", a: ["《雪崩》", "《三体》", "《1984》"], c: 0, cat: "数码", pk: "metaverse vr" },
-    { q: "《天鹅湖》是谁的作品？", a: ["柴可夫斯基", "肖邦", "李斯特"], c: 0, cat: "艺术", pk: "swan lake ballet" },
-    { q: "下列哪种植物被称为“活化石”？", a: ["银杏", "牡丹", "柳树"], c: 0, cat: "自然", pk: "ginkgo tree" },
-    { q: "文艺复兴发源于哪个国家？", a: ["意大利", "法国", "英国"], c: 0, cat: "历史", pk: "renaissance italy" },
-    { q: "1GB 等于多少 MB？", a: ["1000", "1024", "1048"], c: 1, cat: "数码", pk: "digital data" },
-    { q: "印象派绘画的代表人物是？", a: ["莫奈", "拉斐尔", "米开朗基罗"], c: 0, cat: "艺术", pk: "claude monet" },
-    { q: "企鹅主要生活在？", a: ["北极", "南极", "赤道"], c: 1, cat: "自然", pk: "penguin antarctica" },
-    { q: "“丝绸之路”概念的提出者是？", a: ["李希霍芬", "马可波罗", "张骞"], c: 0, cat: "历史", pk: "silk road camel" },
-    { q: "第一个进入太空的人是？", a: ["加加林", "阿姆斯特朗", "杨利伟"], c: 0, cat: "历史", pk: "yuri gagarin" },
-    { q: "Photoshop 的母公司是？", a: ["Adobe", "Microsoft", "Google"], c: 0, cat: "数码", pk: "adobe photoshop" },
-    { q: "圆舞曲之王指的是？", a: ["施特劳斯", "舒伯特", "瓦格纳"], c: 0, cat: "艺术", pk: "johann strauss" },
-    { q: "世界上跑得最快的动物是？", a: ["猎豹", "羚羊", "狮子"], c: 0, cat: "自然", pk: "cheetah running" },
-    { q: "拿破仑最终战败于哪场战役？", a: ["滑铁卢", "奥斯特利茨", "莱比锡"], c: 0, cat: "历史", pk: "napoleon waterloo" },
-    { q: "WWW 协议的全称是？", a: ["万维网", "无线网络", "宽带网"], c: 0, cat: "数码", pk: "world wide web" },
-    { q: "《向日葵》是哪位画家的代表作？", a: ["梵高", "莫奈", "塞尚"], c: 0, cat: "艺术", pk: "van gogh sunflowers" },
-    { q: "地球上氧气主要来源于？", a: ["森林", "海洋藻类", "湿地"], c: 1, cat: "自然", pk: "ocean algae" },
-    { q: "“我思故我在”是谁的名言？", a: ["笛卡尔", "苏格拉底", "尼采"], c: 0, cat: "历史", pk: "descartes philosopher" }
+    { q: "婴儿出生时约有300块骨头，成年后约为？", a: ["206块", "250块", "180块"], c: 0, cat: "生物", pk: "human" },
+    { q: "人体最大的器官是什么？", a: ["肝脏", "皮肤", "小肠"], c: 1, cat: "生物", pk: "frame-expand" },
+    { q: "DNA双螺旋结构中，与腺嘌呤(A)配对的是？", a: ["胞嘧啶", "鸟嘌呤", "胸腺嘧啶"], c: 2, cat: "生物", pk: "dna" },
+    { q: "哪种血型被称为“万能受血者”？", a: ["O型", "AB型", "B型"], c: 1, cat: "生物", pk: "droplet" },
+    { q: "大脑中负责记忆和导航的部位是？", a: ["海马体", "杏仁核", "下丘脑"], c: 0, cat: "生物", pk: "brain" },
+    { q: "人体内最坚硬的物质是？", a: ["骨骼", "牙釉质", "指甲"], c: 1, cat: "生物", pk: "shield" },
+    { q: "成年人全身血液循环一周大约需要多久？", a: ["20秒", "1分钟", "5分钟"], c: 1, cat: "生物", pk: "heart" },
+    { q: "细胞的“动力工厂”通常指？", a: ["细胞核", "线粒体", "溶酶体"], c: 1, cat: "生物", pk: "bolt" },
+    { q: "阳光照射皮肤主要合成哪种维生素？", a: ["维生素A", "维生素C", "维生素D"], c: 2, cat: "生物", pk: "sun" },
+    { q: "唯一能产生乳汁的动物类别是？", a: ["爬行动物", "哺乳动物", "鸟类"], c: 1, cat: "生物", pk: "vignette" },
+    { q: "绝对零度对应的摄氏度是多少？", a: ["0°C", "-273.15°C", "-100°C"], c: 1, cat: "物理", pk: "snow" },
+    { q: "周期表中原子序数为1的元素是？", a: ["氦", "锂", "氢"], c: 2, cat: "化学", pk: "subtitles" },
+    { q: "质能方程 E=mc² 中的 c 代表？", a: ["质量", "光速", "能量"], c: 1, cat: "物理", pk: "forward" },
+    { q: "声音在真空中能传播吗？", a: ["能", "不能", "取决于距离"], c: 1, cat: "物理", pk: "volume-x" },
+    { q: "常温下唯一的液态金属是？", a: ["铝", "汞", "溴"], c: 1, cat: "化学", pk: "flask" },
+    { q: "“薛定谔的猫”解释量子力学的？", a: ["纠缠", "叠加态", "跃迁"], c: 1, cat: "物理", pk: "cat" },
+    { q: "铅笔芯的主要成分是？", a: ["铅", "石墨", "木炭"], c: 1, cat: "化学", pk: "edit" },
+    { q: "水的化学分子式是？", a: ["HO2", "H2O", "H2O2"], c: 1, cat: "化学", pk: "water" },
+    { q: "万有引力的提出者是？", a: ["牛顿", "爱因斯坦", "霍金"], c: 0, cat: "物理", pk: "apple" },
+    { q: "钻石主要由哪种元素组成？", a: ["硅", "碳", "氧"], c: 1, cat: "化学", pk: "diamond" },
+    { q: "太阳系最大的行星是？", a: ["土星", "木星", "海王星"], c: 1, cat: "天文", pk: "planet" },
+    { q: "除太阳外离地球最近的恒星是？", a: ["北极星", "比邻星", "天狼星"], c: 1, cat: "天文", pk: "star" },
+    { q: "马里亚纳海沟位于哪个洋？", a: ["大西洋", "太平洋", "印度洋"], c: 1, cat: "地理", pk: "anchor" },
+    { q: "“光年”是衡量什么的单位？", a: ["时间", "距离", "速度"], c: 1, cat: "天文", pk: "ruler" },
+    { q: "大气中含量最高的气体是？", a: ["氧气", "二氧化碳", "氮气"], c: 2, cat: "天文", pk: "wind" },
+    { q: "赤道没有穿过哪个洲？", a: ["非洲", "亚洲", "欧洲"], c: 2, cat: "地理", pk: "map" },
+    { q: "月球绕地球一圈约为？", a: ["24小时", "27.3天", "365天"], c: 1, cat: "天文", pk: "moon" },
+    { q: "地壳中含量最多的金属是？", a: ["铁", "铝", "铜"], c: 1, cat: "地理", pk: "briefcase" },
+    { q: "地球上跨经度最广的地区是？", a: ["赤道", "南极点/北极点", "格林威治"], c: 1, cat: "地理", pk: "flag" },
+    { q: "冥王星现在的身份是？", a: ["行星", "矮行星", "卫星"], c: 1, cat: "天文", pk: "radio-on" },
+    { q: "钢铁侠的真实姓名是？", a: ["布鲁斯·韦恩", "托尼·斯塔克", "史蒂夫"], c: 1, cat: "流行", pk: "user" },
+    { q: "MBTI中“I”代表？", a: ["直觉", "内向", "判断"], c: 1, cat: "流行", pk: "eye-closed" },
+    { q: "伏地魔的真名是？", a: ["汤姆·里德尔", "斯内普", "邓布利多"], c: 0, cat: "流行", pk: "hidden" },
+    { q: "游戏术语“NPC”指？", a: ["非玩家角色", "国家中心", "新代码"], c: 0, cat: "流行", pk: "android" },
+    { q: "开创波普艺术画玛丽莲梦露的是？", a: ["毕加索", "沃霍尔", "达利"], c: 1, cat: "流行", pk: "image" },
+    { q: "赛博朋克的核心是？", a: ["高科技低生活", "蒸汽", "魔法"], c: 0, cat: "流行", pk: "terminal" },
+    { q: "比特币创始人是？", a: ["中本聪", "马斯克", "贝索斯"], c: 0, cat: "流行", pk: "coin" },
+    { q: "最著名的水管工英雄是？", a: ["林克", "马力欧", "皮卡丘"], c: 1, cat: "流行", pk: "device-gamepad" },
+    { q: "《寄生虫》是哪国电影？", a: ["中国", "韩国", "日本"], c: 1, cat: "流行", pk: "movie" },
+    { q: "TikTok 的母公司是？", a: ["腾讯", "字节跳动", "百度"], c: 1, cat: "流行", pk: "music" },
+    { q: "扑克牌（不含王）有多少张？", a: ["52张", "54张", "48张"], c: 0, cat: "常识", pk: "grid" },
+    { q: "奥林匹克五环黄环代表？", a: ["欧洲", "亚洲", "非洲"], c: 1, cat: "常识", pk: "loader" },
+    { q: "两河流域是指哪两河？", a: ["底格里斯/幼发拉底", "黄河/长江", "尼罗河"], c: 0, cat: "常识", pk: "waves" },
+    { q: "计算机之父是？", a: ["图灵", "诺贝尔", "特斯拉"], c: 0, cat: "常识", pk: "cpu" },
+    { q: "独角兽公司指估值超过？", a: ["1亿美金", "10亿美金", "100亿"], c: 1, cat: "常识", pk: "trending-up" },
+    { q: "香槟产自哪个国家？", a: ["法国", "意大利", "西班牙"], c: 0, cat: "常识", pk: "glass-half" },
+    { q: "天空是蓝色的主因是？", a: ["折射", "散射", "反射"], c: 1, cat: "常识", pk: "cloud" },
+    { q: "第一性原理是谁提出的？", a: ["亚里士多德", "孔子", "康德"], c: 0, cat: "常识", pk: "book" },
+    { q: "白色污染指哪种废弃物？", a: ["纸张", "塑料", "金属"], c: 1, cat: "常识", pk: "trash" },
+    { q: "世界第一长河是？", a: ["尼罗河", "亚马逊河", "长江"], c: 0, cat: "常识", pk: "script" },
+    { q: "二战中代号为“霸王行动”的登陆战是？", a: ["诺曼底", "中途岛", "敦刻尔克"], c: 0, cat: "历史", pk: "ship" },
+    { q: "世界上第一台通用计算机的名字是？", a: ["ENIAC", "APPLE I", "Deep Blue"], c: 0, cat: "数码", pk: "desktop-device" },
+    { q: "被称为“交响乐之父”的作曲家是？", a: ["海顿", "莫扎特", "贝多芬"], c: 0, cat: "艺术", pk: "music-lib" },
+    { q: "猫的胡须主要作用是？", a: ["装饰", "测量空间", "辅助呼吸"], c: 1, cat: "自然", pk: "attachment" },
+    { q: "第一届现代奥运会是在哪里举行的？", a: ["雅典", "巴黎", "伦敦"], c: 0, cat: "历史", pk: "buildings" },
+    { q: "手机屏幕的 PPI 指的是什么？", a: ["像素密度", "处理器速度", "电池容量"], c: 0, cat: "数码", pk: "smartphone" },
+    { q: "《清明上河图》描绘的是哪个朝代的景象？", a: ["唐朝", "北宋", "明朝"], c: 1, cat: "艺术", pk: "layout" },
+    { q: "地球上最深的湖泊是？", a: ["贝加尔湖", "里海", "死海"], c: 0, cat: "自然", pk: "arrow-down" },
+    { q: "谁发明了活字印刷术？", a: ["毕昇", "蔡伦", "张衡"], c: 0, cat: "历史", pk: "print" },
+    { q: "下列哪个不是编程语言？", a: ["Python", "HTML", "Safari"], c: 2, cat: "数码", pk: "code" },
+    { q: "名画《戴珍珠耳环的少女》的作者是？", a: ["维米尔", "梵高", "达芬奇"], c: 0, cat: "艺术", pk: "frame" },
+    { q: "蝙蝠属于哪一类动物？", a: ["鸟类", "哺乳动物", "爬行动物"], c: 1, cat: "自然", pk: "alarm" },
+    { q: "古埃及金字塔的主要用途是？", a: ["粮仓", "陵墓", "天文台"], c: 1, cat: "历史", pk: "up" },
+    { q: "“元宇宙”概念最早出自哪部小说？", a: ["《雪崩》", "《三体》", "《1984》"], c: 0, cat: "数码", pk: "vr" },
+    { q: "《天鹅湖》是谁的作品？", a: ["柴可夫斯基", "肖邦", "李斯特"], c: 0, cat: "艺术", pk: "move" },
+    { q: "下列哪种植物被称为“活化石”？", a: ["银杏", "牡丹", "柳树"], c: 0, cat: "自然", pk: "leaf" },
+    { q: "文艺复兴发源于哪个国家？", a: ["意大利", "法国", "英国"], c: 0, cat: "历史", pk: "camera" },
+    { q: "1GB 等于多少 MB？", a: ["1000", "1024", "1048"], c: 1, cat: "数码", pk: "hard-drive" },
+    { q: "印象派绘画的代表人物是？", a: ["莫奈", "拉斐尔", "米开朗基罗"], c: 0, cat: "艺术", pk: "paint-bucket" },
+    { q: "企鹅主要生活在？", a: ["北极", "南极", "赤道"], c: 1, cat: "自然", pk: "wind" },
+    { q: "“丝绸之路”概念的提出者是？", a: ["李希霍芬", "马可波罗", "张骞"], c: 0, cat: "历史", pk: "shuffle" },
+    { q: "第一个进入太空的人是？", a: ["加加林", "阿姆斯特朗", "杨利伟"], c: 0, cat: "历史", pk: "world" },
+    { q: "Photoshop 的母公司是？", a: ["Adobe", "Microsoft", "Google"], c: 0, cat: "数码", pk: "fill" },
+    { q: "圆舞曲之王指的是？", a: ["施特劳斯", "舒伯特", "瓦格纳"], c: 0, cat: "艺术", pk: "music" },
+    { q: "世界上跑得最快的动物是？", a: ["猎豹", "羚羊", "狮子"], c: 0, cat: "自然", pk: "speed-fast" },
+    { q: "拿破仑最终战败于哪场战役？", a: ["滑铁卢", "奥斯特利茨", "莱比锡"], c: 0, cat: "历史", pk: "close" },
+    { q: "WWW 协议的全称是？", a: ["万维网", "无线网络", "宽带网"], c: 0, cat: "数码", pk: "link" },
+    { q: "《向日葵》是哪位画家的代表作？", a: ["梵高", "莫奈", "塞尚"], c: 0, cat: "艺术", pk: "sun" },
+    { q: "地球上氧气主要来源于？", a: ["森林", "海洋藻类", "湿地"], c: 1, cat: "自然", pk: "waves" },
+    { q: "“我思故我在”是谁的名言？", a: ["笛卡尔", "苏格拉底", "尼采"], c: 0, cat: "历史", pk: "message" }
 ];
 
-let quizDb = [...rawDb];
+let quizDb = [...db];
 let cur = 0, totalScore = 0, combo = 0, lock = false, timer, timeLeft = 15;
-let preloadedImgs = {}; // 图片缓存对象
+let preloadedImgs = {};
 
-// 像素图生成函数：使用 DiceBear 像素艺术 API
 function getPixelUrl(pk) {
-    // 逻辑：使用专门的像素插画生成接口
-    // 这个接口会根据关键词生成更像“东西”的像素图，而不是乱七八糟的摄影图
-    // 我们使用了 DiceBear 的像素艺术变体，并增加了背景和复杂度
-    const seed = encodeURIComponent(pk);
-    return `https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed}&size=128&backgroundColor=b6e3f4,c0aede,d1d4f9&radius=10`;
+    // 逻辑：使用高对比度的 SVG 像素图标库
+    return `https://raw.githubusercontent.com/halfmage/pixelarticons/master/svg/${pk}.svg`;
 }
 
-// 预加载逻辑：在后台静默加载
 function preload(index) {
-    for(let i=index; i<index+5; i++) {
+    for(let i=index; i<index+10; i++) {
         if(quizDb[i] && !preloadedImgs[i]) {
             const url = getPixelUrl(quizDb[i].pk);
             const img = new Image();
@@ -213,7 +206,7 @@ function shuffle(array) {
 
 function initGame() {
     shuffle(quizDb);
-    preload(0); // 初始化时先加载前几个
+    preload(0);
     document.getElementById('start-screen').classList.add('hidden');
     document.getElementById('game-screen').classList.remove('hidden');
     render();
@@ -224,13 +217,17 @@ function render() {
     lock = false; timeLeft = 15;
     const data = quizDb[cur];
     
-    // UI 更新
-    document.getElementById('cat-icon').innerText = data.icon;
-    document.getElementById('cat-label').innerText = data.cat + "_UNIT";
+    document.getElementById('cat-label').innerText = data.cat + "_NODE";
     document.getElementById('prog-label').innerText = `${(cur+1).toString().padStart(2,'0')}/${quizDb.length}`;
     document.getElementById('q-text').innerText = data.q;
     document.getElementById('timer-val').innerText = timeLeft;
-    document.getElementById('q-img').src = preloadedImgs[cur] || getPixelUrl(data.pk);
+    
+    const imgElement = document.getElementById('q-img');
+    imgElement.style.opacity = 0;
+    setTimeout(() => {
+        imgElement.src = preloadedImgs[cur] || getPixelUrl(data.pk);
+        imgElement.style.opacity = 1;
+    }, 100);
 
     const box = document.getElementById('opt-box');
     box.innerHTML = '';
@@ -242,7 +239,6 @@ function render() {
         box.appendChild(b);
     });
 
-    // 预加载后面的
     preload(cur + 1);
 
     clearInterval(timer);
@@ -262,7 +258,7 @@ function check(idx, btn) {
     if(idx === correctIdx) {
         combo++;
         btn.classList.add('correct');
-        totalScore += (10 + combo * 2 + timeLeft);
+        totalScore += (10 + combo * 5 + timeLeft);
     } else {
         combo = 0;
         if(btn) btn.classList.add('wrong');
@@ -276,7 +272,7 @@ function check(idx, btn) {
         document.getElementById('combo-num').innerText = combo; 
     } else { cw.classList.add('hidden'); }
 
-    setTimeout(() => { cur++; render(); }, 800); // 缩短等待时间，提升流畅度
+    setTimeout(() => { cur++; render(); }, 800);
 }
 
 function showResult() {
@@ -285,12 +281,12 @@ function showResult() {
     document.getElementById('final-score').innerText = totalScore;
     
     let rank = "RECRUIT";
-    if(totalScore > 1800) rank = "JEDI MASTER";
-    else if(totalScore > 1200) rank = "ELITE PILOT";
-    else if(totalScore > 600) rank = "BOUNTY HUNTER";
+    if(totalScore > 5000) rank = "JEDI MASTER";
+    else if(totalScore > 3000) rank = "ELITE PILOT";
+    else if(totalScore > 1000) rank = "BOUNTY HUNTER";
     
     document.getElementById('rank-title').innerText = rank;
-    document.getElementById('rank-msg').innerText = `DATA SYNC COMPLETE. SECTOR SECURED WITH ${totalScore} POINTS.`;
+    document.getElementById('rank-msg').innerText = `DATA SYNC COMPLETE. SECTOR SECURED.`;
 }
 </script>
 </body>
