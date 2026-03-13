@@ -185,9 +185,11 @@ let preloadedImgs = {}; // 图片缓存对象
 
 // 像素图生成函数：使用 DiceBear 像素艺术 API
 function getPixelUrl(pk) {
-    // 使用 Unsplash 的精准语义搜索，pk 就是我们题库里定义的关键词
-    const searchTerm = `${pk} pixel art`;
-    return `https://source.unsplash.com/400x300?${encodeURIComponent(searchTerm)}`;
+    // 逻辑：使用专门的像素插画生成接口
+    // 这个接口会根据关键词生成更像“东西”的像素图，而不是乱七八糟的摄影图
+    // 我们使用了 DiceBear 的像素艺术变体，并增加了背景和复杂度
+    const seed = encodeURIComponent(pk);
+    return `https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed}&size=128&backgroundColor=b6e3f4,c0aede,d1d4f9&radius=10`;
 }
 
 // 预加载逻辑：在后台静默加载
