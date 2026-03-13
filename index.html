@@ -7,15 +7,15 @@
   <style>
     :root {
       --bg: #f6f3ee;
-      --card: rgba(255, 255, 255, 0.74);
+      --card: rgba(255, 255, 255, 0.76);
       --text: #1d1d1f;
       --muted: #6b6b6f;
       --line: rgba(0, 0, 0, 0.08);
       --accent: #1f6fff;
       --accent-soft: rgba(31, 111, 255, 0.08);
-      --shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+      --shadow: 0 12px 32px rgba(0, 0, 0, 0.06);
       --radius: 24px;
-      --maxw: 1120px;
+      --maxw: 1160px;
     }
 
     * {
@@ -45,7 +45,7 @@
     }
 
     .hero {
-      padding: 28px 0 34px;
+      padding: 28px 0 36px;
       border-bottom: 1px solid var(--line);
       margin-bottom: 30px;
     }
@@ -59,7 +59,7 @@
       padding: 8px 12px;
       border: 1px solid var(--line);
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.52);
+      background: rgba(255, 255, 255, 0.54);
       backdrop-filter: blur(8px);
       margin-bottom: 18px;
     }
@@ -68,15 +68,15 @@
       margin: 0;
       font-size: clamp(44px, 7vw, 84px);
       line-height: 0.95;
-      letter-spacing: -0.04em;
+      letter-spacing: -0.045em;
       font-weight: 800;
     }
 
     .subtitle {
       margin-top: 18px;
-      max-width: 780px;
+      max-width: 820px;
       font-size: 20px;
-      line-height: 1.7;
+      line-height: 1.75;
       color: var(--muted);
     }
 
@@ -133,7 +133,7 @@
       position: relative;
       display: flex;
       flex-direction: column;
-      min-height: 232px;
+      min-height: 238px;
       padding: 22px;
       border-radius: var(--radius);
       background: var(--card);
@@ -153,10 +153,10 @@
     .card::after {
       content: "";
       position: absolute;
-      right: -26px;
-      top: -26px;
-      width: 118px;
-      height: 118px;
+      right: -28px;
+      top: -28px;
+      width: 120px;
+      height: 120px;
       border-radius: 50%;
       background: radial-gradient(circle, rgba(31,111,255,0.10), transparent 68%);
       pointer-events: none;
@@ -181,7 +181,7 @@
     .desc {
       color: var(--muted);
       font-size: 16px;
-      line-height: 1.7;
+      line-height: 1.72;
       margin-bottom: 18px;
       max-width: 36ch;
     }
@@ -246,7 +246,7 @@
     }
 
     .history-section {
-      margin-top: 72px;
+      margin-top: 74px;
     }
 
     .history-wrap {
@@ -255,7 +255,7 @@
     }
 
     .history-panel {
-      background: rgba(255,255,255,0.66);
+      background: rgba(255,255,255,0.68);
       border: 1px solid rgba(255,255,255,0.56);
       box-shadow: var(--shadow);
       backdrop-filter: blur(14px);
@@ -285,6 +285,7 @@
       font-size: 14px;
       color: var(--muted);
       margin-top: 6px;
+      line-height: 1.7;
     }
 
     .history-list {
@@ -319,7 +320,7 @@
     .history-desc {
       font-size: 15px;
       color: var(--muted);
-      line-height: 1.6;
+      line-height: 1.65;
     }
 
     .history-link {
@@ -431,7 +432,7 @@
           <span class="tag">统计</span>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" href="send-it.html">打开</a>
+          <a class="btn btn-primary" href="send-it/send-it.html">打开</a>
         </div>
       </article>
 
@@ -445,7 +446,7 @@
           <span class="tag">误解产物</span>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" href="cosmic-peanut.html">打开</a>
+          <a class="btn btn-primary" href="peanut/cosmic-peanut.html">打开</a>
         </div>
       </article>
 
@@ -459,7 +460,7 @@
           <span class="tag">儿童向</span>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" href="knowledge-cards.html">打开</a>
+          <a class="btn btn-primary" href="knowledge-cards/knowledge-cards.html">打开</a>
         </div>
       </article>
 
@@ -473,7 +474,7 @@
           <span class="tag">Gemini</span>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" href="goat.html">打开</a>
+          <a class="btn btn-primary" href="goat/goat.html">打开</a>
         </div>
       </article>
 
@@ -487,7 +488,7 @@
           <span class="tag">Firebase</span>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" href="anger-kit3.1.html">打开</a>
+          <a class="btn btn-primary" href="anger-kit/anger-kit3.1.html">打开</a>
           <a class="btn btn-secondary" href="#history-anger-kit">版本历史</a>
         </div>
       </article>
@@ -502,7 +503,7 @@
           <span class="tag">决策器</span>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" href="xixi-food.html">打开</a>
+          <a class="btn btn-primary" href="sissi-menu/sissi-menu.html">打开</a>
         </div>
       </article>
 
@@ -516,7 +517,7 @@
           <span class="tag">半成品</span>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" href="sissi-answer.html">打开</a>
+          <a class="btn btn-primary" href="sissi-answer/sissi-answer.html">打开</a>
         </div>
       </article>
 
@@ -530,7 +531,7 @@
           <span class="tag">袜子</span>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" href="colorful-sock-generator3.0.html">打开</a>
+          <a class="btn btn-primary" href="socks/socks.html">打开</a>
           <a class="btn btn-secondary" href="#history-socks">版本历史</a>
         </div>
       </article>
@@ -555,25 +556,25 @@
             <div class="history-item">
               <div class="history-ver">v3.1</div>
               <div class="history-desc">接入 Firebase Realtime Database，实现同名用户跨设备实时同步，并加入同步状态提示。</div>
-              <a class="history-link" href="anger-kit3.1.html">打开</a>
+              <a class="history-link" href="anger-kit/anger-kit3.1.html">打开</a>
             </div>
 
             <div class="history-item">
               <div class="history-ver">v3.0</div>
               <div class="history-desc">改成按住蓄力、松手取消、蓄满爆炸的交互方式，仪式感明显增强。</div>
-              <a class="history-link" href="anger-kit3.0.html">打开</a>
+              <a class="history-link" href="anger-kit/anger-kit3.0.html">打开</a>
             </div>
 
             <div class="history-item">
               <div class="history-ver">v2.0</div>
               <div class="history-desc">从 React JSX 重写成纯 HTML 单文件，降低部署门槛，方便直接托管和分享。</div>
-              <a class="history-link" href="anger-kit2.0.html">打开</a>
+              <a class="history-link" href="anger-kit/anger-kit2.0.html">打开</a>
             </div>
 
             <div class="history-item">
               <div class="history-ver">v1.0</div>
               <div class="history-desc">初始版本。先把“能让我在上班前冷静一点”这件事做出来。</div>
-              <a class="history-link" href="anger-kit.html">打开</a>
+              <a class="history-link" href="anger-kit/anger-kit.html">打开</a>
             </div>
           </div>
         </section>
@@ -588,21 +589,27 @@
 
           <div class="history-list">
             <div class="history-item">
+              <div class="history-ver">主入口</div>
+              <div class="history-desc">当前你给首页设置的打开入口。可以理解成这个项目此刻最想让别人先看到的版本。</div>
+              <a class="history-link" href="socks/socks.html">打开</a>
+            </div>
+
+            <div class="history-item">
               <div class="history-ver">v3.0</div>
               <div class="history-desc">继续根据像素参照和轮廓思路改写，得到目前相对可用的版本。</div>
-              <a class="history-link" href="colorful-sock-generator3.0.html">打开</a>
+              <a class="history-link" href="socks/colorful-sock-generator3.0.html">打开</a>
             </div>
 
             <div class="history-item">
               <div class="history-ver">v2.0</div>
               <div class="history-desc">在第一版基础上继续修正比例和轮廓，开始更明确地朝“像袜子”推进。</div>
-              <a class="history-link" href="colorful-sock-generator2.0.html">打开</a>
+              <a class="history-link" href="socks/colorful-sock-generator2.0.html">打开</a>
             </div>
 
             <div class="history-item">
               <div class="history-ver">v1.0</div>
               <div class="history-desc">初始尝试。证明了“看起来简单的袜子”其实一点都不简单。</div>
-              <a class="history-link" href="colorful-sock-generator.html">打开</a>
+              <a class="history-link" href="socks/colorful-sock-generator.html">打开</a>
             </div>
           </div>
         </section>
