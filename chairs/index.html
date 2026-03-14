@@ -3,57 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>存在主义：所见即所得</title>
+    <title>存在主义：垃圾话博弈</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: "serif"; touch-action: none; }
         #game-stage { 
             position: relative; width: 100vw; height: 100vh; 
-            background-image: url('image_78211d.jpg'); 
+            background-image: url('image_78211d.jpg?v=2'); 
             background-size: cover; background-position: center;
         }
 
-        /* 瞄准镜：判定区域的视觉化呈现 */
+        /* 瞄准镜 */
         #aim-scope {
-            position: absolute;
-            border: 2px solid rgba(255, 0, 0, 0.6);
-            border-radius: 50%;
-            left: 50%; top: 50%;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            z-index: 30;
-            display: none;
-            box-sizing: border-box;
+            position: absolute; border: 2px solid rgba(255, 0, 0, 0.6); border-radius: 50%;
+            left: 50%; top: 50%; transform: translate(-50%, -50%);
+            pointer-events: none; z-index: 30; display: none; box-sizing: border-box;
         }
-        
-        /* 准星十字线 */
-        #aim-scope::before, #aim-scope::after {
-            content: ''; position: absolute; background: rgba(255, 0, 0, 0.4);
-        }
-        #aim-scope::before { width: 100%; height: 1px; top: 50%; left: 0; }
-        #aim-scope::after { height: 100%; width: 1px; left: 50%; top: 0; }
-        
-        /* 锁定即通关状态 */
-        #aim-scope.locked {
-            border-color: #00ff00;
-            background: rgba(0, 255, 0, 0.2);
-            box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
-            transition: background 0.1s, border-color 0.1s;
-        }
+        #aim-scope.locked { border-color: #00ff00; background: rgba(0, 255, 0, 0.2); }
 
-        .philosopher {
+        /* 哲学家通用样式 */
+        .philosopher-container {
             position: absolute; width: 180px; z-index: 10;
-            user-select: none; -webkit-user-drag: none;
             transform: translate(-50%, -50%); 
+            transition: opacity 0.3s;
+        }
+        .philosopher-img { width: 100%; user-select: none; -webkit-user-drag: none; }
+
+        /* 玩家：金色光晕 */
+        .player { filter: drop-shadow(0 0 25px rgba(255, 215, 0, 0.9)); cursor: grab; z-index: 20; }
+        
+        /* 垃圾话气泡 */
+        .speech-bubble {
+            position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
+            background: white; border: 2px solid black; padding: 5px 10px;
+            border-radius: 10px; font-size: 12px; white-space: nowrap;
+            font-weight: bold; pointer-events: none; opacity: 0;
+            transition: opacity 0.3s; z-index: 40;
         }
 
-        .player { filter: drop-shadow(0 0 25px rgba(255, 215, 0, 0.9)); cursor: grab; z-index: 20; }
-        .ai { filter: none; opacity: 1; pointer-events: none; }
-        
+        /* 入座动画库 */
+        .sit-animation {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+            transform: translate(-50%, -50%) scale(0.8) !important;
+        }
+
         .winner-sitting {
             position: absolute; width: 100%; height: 100%;
-            background-image: url('image_782124.jpg');
+            background-image: url('image_782124.jpg?v=2');
             background-size: cover; background-position: center;
-            z-index: 5; opacity: 0; transition: opacity 0.2s;
+            z-index: 5; opacity: 0; transition: opacity 0.3s;
         }
 
         #ui { position: absolute; top: 0; width: 100%; text-align: center; pointer-events: none; z-index: 100; }
@@ -62,7 +59,6 @@
             border: 3px solid #000; padding: 15px 40px; margin-top: 20px;
             pointer-events: auto; box-shadow: 8px 8px 0px #000;
         }
-        #msg { font-size: 20px; font-weight: bold; }
         #countdown { font-size: 50px; color: #00ff00; font-weight: 900; display: none; }
         .btn { background: #000; color: #fff; padding: 12px 35px; border: none; cursor: pointer; font-size: 20px; font-weight: bold; margin-top: 10px; }
     </style>
@@ -74,10 +70,10 @@
     <div id="winner-layer" class="winner-sitting"></div>
     <div id="ui">
         <div class="panel">
-            <div id="status">关卡 <span id="lv-num">1</span></div>
-            <div id="msg">瞄准即确证</div>
+            <div id="status">第 <span id="lv-num">1</span> 关</div>
+            <div id="msg">确证即存在</div>
             <div id="countdown">3</div>
-            <button id="main-btn" class="btn" onclick="initAndStart()">开启确证</button>
+            <button id="main-btn" class="btn" onclick="initAndStart()">开启轮回</button>
         </div>
     </div>
 </div>
@@ -87,22 +83,20 @@
     let playerPos = { x: 0, y: 0 }, chairPos = { x: 0, y: 0 };
     let startMouse = { x: 0, y: 0 }, startObj = { x: 0, y: 0 };
     
-    // 判定半径：完全决定了瞄准镜的大小
     let hitRadius = 50; 
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const trashTalks = [
+        "你只是虚无的影子！", "椅子属于更有思想的人。", 
+        "上帝已死，而你太慢！", "这是我的存在瞬间。", 
+        "你甚至无法定义你自己！", "平庸的人不配入座。"
+    ];
 
     function setupPlatform() {
-        // 桌面端半径大幅增加，确保鼠标一划即中
-        hitRadius = isTouchDevice ? 40 : 100; 
-        document.getElementById('msg').innerText = isTouchDevice ? "手机端：精准吸附" : "电脑端：大范围捕获";
-    }
-    setupPlatform();
-
-    function resize() {
+        hitRadius = isTouchDevice ? 40 : 100;
         chairPos = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     }
-    window.addEventListener('resize', resize);
-    resize();
+    window.addEventListener('resize', setupPlatform);
+    setupPlatform();
 
     function playTone(freq, duration) {
         if (!audioCtx) return;
@@ -128,43 +122,66 @@
         
         const scope = document.getElementById('aim-scope');
         scope.style.display = 'block';
-        // 视觉圆圈大小严格等于判定半径
         scope.style.width = (hitRadius * 2) + 'px';
         scope.style.height = (hitRadius * 2) + 'px';
         scope.classList.remove('locked');
 
         document.getElementById('lv-num').innerText = currentLevel;
-        document.querySelectorAll('.philosopher').forEach(p => p.remove());
+        document.querySelectorAll('.philosopher-container').forEach(p => p.remove());
 
+        // 1. 创建玩家并显示在初始位置
         playerPos = { x: window.innerWidth * 0.85, y: window.innerHeight * 0.85 };
-        playerObj = document.createElement('img');
-        playerObj.src = 'image_78215a.png';
-        playerObj.className = 'philosopher player';
-        updatePos(playerObj, playerPos.x, playerPos.y);
-        document.getElementById('game-stage').appendChild(playerObj);
-        
-        bindDrag(playerObj);
-        for (let i = 0; i < currentLevel; i++) createAI();
+        const pContainer = createPhilosopher('image_78215a.png?v=2', 'player');
+        pContainer.id = 'player-node';
+        updatePos(pContainer, playerPos.x, playerPos.y);
+        document.getElementById('game-stage').appendChild(pContainer);
+        bindDrag(pContainer);
+
+        // 2. 创建 AI 并显示在初始位置
+        for (let i = 0; i < currentLevel; i++) {
+            const aiContainer = createPhilosopher('image_78215a.png?v=2', 'ai');
+            let aiX = Math.random() > 0.5 ? -100 : window.innerWidth + 100;
+            let aiY = Math.random() * window.innerHeight;
+            updatePos(aiContainer, aiX, aiY);
+            document.getElementById('game-stage').appendChild(aiContainer);
+            
+            // 3. AI 开始说垃圾话
+            setTimeout(() => {
+                const bubble = aiContainer.querySelector('.speech-bubble');
+                bubble.innerText = trashTalks[Math.floor(Math.random() * trashTalks.length)];
+                bubble.style.opacity = 1;
+                // AI 启动竞速
+                startAiLogic(aiContainer);
+            }, 1000); 
+        }
     }
 
-    function updatePos(el, x, y) { el.style.left = x + 'px'; el.style.top = y + 'px'; }
+    function createPhilosopher(src, className) {
+        const container = document.createElement('div');
+        container.className = 'philosopher-container ' + className;
+        container.innerHTML = `
+            <div class="speech-bubble">...</div>
+            <img src="${src}" class="philosopher-img">
+        `;
+        return container;
+    }
 
-    function createAI() {
-        const ai = document.createElement('img');
-        ai.src = 'image_78215a.png';
-        ai.className = 'philosopher ai';
-        let aiX = Math.random() > 0.5 ? -300 : window.innerWidth + 300;
-        let aiY = Math.random() * window.innerHeight;
-        updatePos(ai, aiX, aiY);
-        document.getElementById('game-stage').appendChild(ai);
-
-        const duration = Math.max(0.4, 3.8 - (currentLevel * 0.45));
+    function startAiLogic(el) {
+        const duration = Math.max(0.5, 4.0 - (currentLevel * 0.5));
+        el.style.transition = `all ${duration}s cubic-bezier(0.1, 0, 0.3, 1)`;
+        updatePos(el, chairPos.x, chairPos.y);
+        
         setTimeout(() => {
-            if (!isGaming) return;
-            ai.style.transition = `all ${duration}s cubic-bezier(0.1, 0, 0.3, 1)`;
-            updatePos(ai, chairPos.x, chairPos.y);
-            setTimeout(() => { if (isGaming) endRound(false); }, duration * 1000);
-        }, 1000);
+            if (isGaming) {
+                el.classList.add('sit-animation');
+                endRound(false);
+            }
+        }, duration * 1000);
+    }
+
+    function updatePos(el, x, y) { 
+        el.style.left = x + 'px'; 
+        el.style.top = y + 'px'; 
     }
 
     function bindDrag(el) {
@@ -184,13 +201,11 @@
             updatePos(el, playerPos.x, playerPos.y);
 
             const dist = Math.sqrt(Math.pow(playerPos.x - chairPos.x, 2) + Math.pow(playerPos.y - chairPos.y, 2));
-            
-            // 核心变动：判定的边界就是瞄准镜的边缘
             if (dist < hitRadius) {
                 isDragging = false;
+                el.classList.add('sit-animation');
+                updatePos(el, chairPos.x, chairPos.y);
                 document.getElementById('aim-scope').classList.add('locked');
-                // 瞬间强制对齐中心，视觉吸附
-                updatePos(el, chairPos.x, chairPos.y); 
                 endRound(true);
             }
         };
@@ -208,27 +223,31 @@
         
         setTimeout(() => {
             document.getElementById('aim-scope').style.display = 'none';
-            document.querySelectorAll('.philosopher').forEach(p => p.style.opacity = '0');
-            document.getElementById('winner-layer').style.opacity = '1';
-
-            if (win) {
-                playTone(880, 0.4);
-                currentLevel++;
-                document.getElementById('msg').innerText = "锁定！存在已确证。";
-                startCountdown();
-            } else {
-                playTone(150, 0.4);
-                document.getElementById('msg').innerText = "目标被 AI 拦截！";
-                document.getElementById('main-btn').style.display = 'inline-block';
-            }
-        }, 50); // 微小延迟确保吸附动画可见
+            document.querySelectorAll('.philosopher-container').forEach(p => {
+                if(!p.classList.contains('sit-animation')) p.style.opacity = '0';
+            });
+            
+            setTimeout(() => {
+                document.getElementById('winner-layer').style.opacity = '1';
+                if (win) {
+                    playTone(880, 0.4);
+                    currentLevel++;
+                    document.getElementById('msg').innerText = "确证成功！下一轮回倒计时...";
+                    startCountdown();
+                } else {
+                    playTone(150, 0.4);
+                    document.getElementById('msg').innerText = "太慢了，存在被夺走了！";
+                    document.getElementById('main-btn').style.display = 'inline-block';
+                    document.getElementById('main-btn').innerText = "重启轮回";
+                }
+            }, 300);
+        }, 100);
     }
 
     function startCountdown() {
         let count = 3;
         const cd = document.getElementById('countdown');
-        cd.innerText = count;
-        cd.style.display = 'block';
+        cd.innerText = count; cd.style.display = 'block';
         const timer = setInterval(() => {
             count--;
             if (count > 0) { cd.innerText = count; playTone(660, 0.1); }
