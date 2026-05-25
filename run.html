@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Office Escape</title>
+  <style>
+    :root {
+      --bg: #08090f;
+      --ink: #e8e2c6;
+      --muted: #928a74;
+      --violet: #2a183c;
+      --stone: #20283a;
+      --gold: #f2c14e;
+      --red: #e85f5c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(232, 226, 198, 0.05) 2px, transparent 2px),
+        linear-gradient(90deg, rgba(232, 226, 198, 0.04) 2px, transparent 2px),
+        radial-gradient(circle at 52% 20%, #231530 0 11%, transparent 24%),
+        var(--bg);
+      background-size: 32px 32px, 32px 32px, 100% 100%, auto;
+      font-family: "Courier New", "Noto Sans SC", monospace;
+      image-rendering: pixelated;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .frame {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      padding: 14px;
+    }
+
+    canvas {
+      width: min(calc(100vw - 292px), calc((100vh - 28px) * 16 / 9));
+      height: auto;
+      max-height: calc(100vh - 28px);
+      aspect-ratio: 16 / 9;
+      border: 5px solid #5d536f;
+      background: #0a0b12;
+      box-shadow: 0 0 0 5px #0a0b12, 10px 10px 0 #030407;
+      image-rendering: pixelated;
+    }
+
+    .controls-panel {
+      width: 230px;
+      padding: 14px;
+      border: 5px solid #5d536f;
+      background: rgba(8, 9, 15, 0.92);
+      box-shadow: 8px 8px 0 #030407;
+    }
+
+    .controls-panel h1 {
+      margin: 0 0 14px;
+      color: var(--gold);
+      font-size: 24px;
+      line-height: 1;
+      text-shadow: 3px 3px 0 #030407;
+    }
+
+    .key-row {
+      display: grid;
+      grid-template-columns: 74px 1fr;
+      gap: 8px;
+      align-items: center;
+      min-height: 38px;
+      margin-top: 8px;
+      color: var(--ink);
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .key {
+      display: grid;
+      place-items: center;
+      min-height: 30px;
+      padding: 4px 6px;
+      color: #08090f;
+      background: var(--gold);
+      border-right: 4px solid #030407;
+      border-bottom: 4px solid #030407;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .mobile-keys {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 3px solid #5d536f;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .touch-hint {
+      position: fixed;
+      left: 14px;
+      right: 14px;
+      bottom: 12px;
+      display: none;
+      justify-content: space-between;
+      color: rgba(232, 226, 198, 0.55);
+      font: 700 12px/1.3 "Courier New", monospace;
+      pointer-events: none;
+    }
+
+    @media (max-width: 960px) {
+      body {
+        overflow: auto;
+      }
+
+      .frame {
+        min-height: 100vh;
+        height: auto;
+        flex-direction: column;
+      }
+
+      canvas {
+        width: min(100%, calc((100vh - 210px) * 16 / 9));
+        max-height: calc(100vh - 210px);
+      }
+
+      .controls-panel {
+        width: min(100%, 520px);
+      }
+    }
+
+    @media (pointer: coarse) {
+      .touch-hint {
+        display: flex;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <canvas id="game" width="960" height="540" aria-label="Office Escape 打工人跑酷小游戏"></canvas>
+    <aside class="controls-panel" aria-label="玩家操作按键">
+      <h1>操作按键</h1>
+      <div class="key-row"><span class="key">SPACE</span><span>跳跃 / 二段跳</span></div>
+      <div class="key-row"><span class="key">SHIFT</span><span>滑行</span></div>
+      <div class="key-row"><span class="key">E</span><span>时间减速</span></div>
+      <div class="key-row"><span class="key">P</span><span>暂停 / 继续</span></div>
+      <div class="mobile-keys">
+        手机：左半屏点击跳跃，右半屏长按滑行。
+      </div>
+    </aside>
+  </div>
+  <div class="touch-hint">
+    <span>左半屏：跳跃 / 二段跳</span>
+    <span>右半屏长按：滑行</span>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+
+    const W = canvas.width;
+    const H = canvas.height;
+    const GROUND_Y = 430;
+    const PLAYER_X = 150;
+    const TILE = 32;
+    const palette = {
+      sky: "#08090f",
+      moon: "#e8e2c6",
+      stone: "#20283a",
+      violet: "#2a183c",
+      gold: "#f2c14e",
+      red: "#e85f5c",
+      teal: "#58d1c9",
+      black: "#030407"
+    };
+
+    const state = {
+      mode: "menu",
+      sound: true,
+      best: Number(localStorage.getItem("moonCorridorBest") || 0),
+      score: 0,
+      combo: 1,
+      orbs: 0,
+      time: 0,
+      scroll: 0,
+      speedUnit: 6,
+      skillCd: 0,
+      slowTimer: 0,
+      deathReason: "",
+      loadingUntil: 0,
+      chunks: [],
+      solids: [],
+      obstacles: [],
+      orbsList: [],
+      lasers: [],
+      particles: []
+    };
+
+    const player = {
+      x: PLAYER_X,
+      y: GROUND_Y - 70,
+      w: 34,
+      h: 70,
+      vy: 0,
+      jumps: 0,
+      grounded: true,
+      sliding: false,
+      slideTimer: 0,
+      slideCd: 0,
+      dead: false
+    };
+
+    const easyChunks = [
+      { len: 560, solids: [[0, 560]], obstacles: [], orbs: [[280, 335], [340, 335]] },
+      { len: 620, solids: [[0, 260], [350, 620]], obstacles: [], orbs: [[420, 310], [470, 310]] },
+      { len: 650, solids: [[0, 650]], obstacles: [{ x: 380, y: GROUND_Y - 55, w: 36, h: 55, type: "high" }], orbs: [[470, 330]] },
+      { len: 640, solids: [[0, 640]], obstacles: [{ x: 340, y: GROUND_Y - 92, w: 72, h: 40, type: "low" }], orbs: [[240, 335], [500, 335]] }
+    ];
+
+    const mediumChunks = [
+      { len: 720, solids: [[0, 250], [430, 720]], obstacles: [], orbs: [[455, 300], [510, 290], [565, 300]] },
+      { len: 760, solids: [[0, 760]], obstacles: [{ x: 260, y: GROUND_Y - 55, w: 36, h: 55, type: "high" }, { x: 520, y: GROUND_Y - 55, w: 36, h: 55, type: "high" }], orbs: [[385, 315], [650, 315]] },
+      { len: 760, solids: [[0, 220], [330, 480], [590, 760]], obstacles: [], orbs: [[360, 315], [620, 315]] },
+      { len: 740, solids: [[0, 740]], obstacles: [{ x: 300, y: GROUND_Y - 92, w: 76, h: 40, type: "low" }, { x: 545, y: GROUND_Y - 55, w: 36, h: 55, type: "high" }], orbs: [[450, 320]] }
+    ];
+
+    const hardChunks = [
+      { len: 840, solids: [[0, 230], [430, 610], [710, 840]], obstacles: [{ x: 735, y: GROUND_Y - 55, w: 40, h: 55, type: "high" }], orbs: [[458, 300], [515, 290], [572, 300]] },
+      { len: 820, solids: [[0, 820]], obstacles: [{ x: 230, y: GROUND_Y - 92, w: 78, h: 40, type: "low" }, { x: 500, y: GROUND_Y - 92, w: 78, h: 40, type: "low" }], lasers: [{ x: 670, y: GROUND_Y - 118, w: 22, h: 118 }], orbs: [[385, 315], [590, 315]] },
+      { len: 880, solids: [[0, 260], [390, 560], [690, 880]], obstacles: [{ x: 440, y: GROUND_Y - 55, w: 38, h: 55, type: "high" }, { x: 725, y: GROUND_Y - 92, w: 80, h: 40, type: "low" }], orbs: [[705, 300], [760, 290], [815, 300]] },
+      { len: 820, solids: [[0, 820]], obstacles: [{ x: 260, y: GROUND_Y - 55, w: 38, h: 55, type: "high" }, { x: 430, y: GROUND_Y - 92, w: 74, h: 40, type: "low" }], lasers: [{ x: 620, y: GROUND_Y - 130, w: 24, h: 130 }], orbs: [[535, 320], [700, 300]] }
+    ];
+
+    let lastFrame = performance.now();
+    let audioCtx = null;
+
+    function playTone(freq, duration, type, volume) {
+      if (!state.sound) return;
+      try {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type || "square";
+        osc.frequency.value = freq;
+        gain.gain.value = volume || 0.05;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (error) {}
+    }
+
+    const sounds = {
+      jump: () => playTone(520, 0.12, "square", 0.045),
+      land: () => playTone(160, 0.08, "triangle", 0.04),
+      collect: () => playTone(880, 0.1, "square", 0.035),
+      death: () => playTone(90, 0.45, "sawtooth", 0.045),
+      skill: () => playTone(320, 0.25, "triangle", 0.055)
+    };
+
+    function resetGame() {
+      state.mode = "loading";
+      state.loadingUntil = performance.now() + 450;
+      state.score = 0;
+      state.combo = 1;
+      state.orbs = 0;
+      state.time = 0;
+      state.scroll = 0;
+      state.speedUnit = 6;
+      state.skillCd = 0;
+      state.slowTimer = 0;
+      state.deathReason = "";
+      state.solids = [];
+      state.obstacles = [];
+      state.orbsList = [];
+      state.lasers = [];
+      state.particles = [];
+      player.y = GROUND_Y - player.h;
+      player.vy = 0;
+      player.jumps = 0;
+      player.grounded = true;
+      player.sliding = false;
+      player.slideTimer = 0;
+      player.slideCd = 0;
+      player.dead = false;
+
+      let x = -160;
+      for (let i = 0; i < 8; i += 1) {
+        x = appendChunk(x, i < 2 ? easyChunks[0] : pickChunk());
+      }
+    }
+
+    function pickChunk() {
+      const pool = state.time < 30 ? easyChunks : state.time < 60 ? easyChunks.concat(mediumChunks) : mediumChunks.concat(hardChunks);
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function appendChunk(startX, chunk) {
+      const gapBridge = startX;
+      state.solids.push({ x: gapBridge, y: GROUND_Y, w: 48, h: H - GROUND_Y });
+      chunk.solids.forEach(([a, b]) => state.solids.push({ x: startX + a, y: GROUND_Y, w: b - a, h: H - GROUND_Y }));
+      (chunk.obstacles || []).forEach((o) => state.obstacles.push({ ...o, x: startX + o.x, hit: false }));
+      (chunk.lasers || []).forEach((l) => state.lasers.push({ ...l, x: startX + l.x }));
+      (chunk.orbs || []).forEach(([ox, oy]) => state.orbsList.push({ x: startX + ox, y: oy, w: 18, h: 18, taken: false }));
+      return startX + chunk.len;
+    }
+
+    function ensureMap() {
+      let far = state.solids.reduce((max, s) => Math.max(max, s.x + s.w), 0);
+      while (far < state.scroll + W * 2) {
+        far = appendChunk(far, pickChunk());
+      }
+      const cutoff = state.scroll - 260;
+      state.solids = state.solids.filter((s) => s.x + s.w > cutoff);
+      state.obstacles = state.obstacles.filter((o) => o.x + o.w > cutoff);
+      state.orbsList = state.orbsList.filter((o) => !o.taken && o.x + o.w > cutoff);
+      state.lasers = state.lasers.filter((l) => l.x + l.w > cutoff);
+    }
+
+    function playerRect() {
+      if (player.sliding) {
+        return { x: player.x + 2, y: player.y + 34, w: player.w + 10, h: 36 };
+      }
+      return { x: player.x + 3, y: player.y + 5, w: player.w, h: player.h - 8 };
+    }
+
+    function aabb(a, b) {
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+
+    function worldRect(rect) {
+      return { x: rect.x - state.scroll, y: rect.y, w: rect.w, h: rect.h };
+    }
+
+    function groundUnder(rect) {
+      const foot = rect.y + rect.h;
+      let best = null;
+      for (const solid of state.solids) {
+        const sx = solid.x - state.scroll;
+        if (rect.x + rect.w > sx + 5 && rect.x < sx + solid.w - 5 && foot <= solid.y + 24) {
+          if (best === null || solid.y < best) best = solid.y;
+        }
+      }
+      return best;
+    }
+
+    function jump() {
+      if (state.mode === "menu" || state.mode === "gameover") {
+        resetGame();
+        return;
+      }
+      if (state.mode !== "playing") return;
+      if (player.jumps < 2) {
+        player.vy = player.jumps === 0 ? -675 : -565;
+        player.jumps += 1;
+        player.grounded = false;
+        player.sliding = false;
+        player.slideTimer = 0;
+        burst(player.x + 18, player.y + player.h, palette.moon, 6);
+        sounds.jump();
+      }
+    }
+
+    function startSlide() {
+      if (state.mode !== "playing") return;
+      if (player.slideCd > 0 || player.sliding || !player.grounded) return;
+      player.sliding = true;
+      player.slideTimer = 0.8;
+      player.slideCd = 2;
+      sounds.land();
+    }
+
+    function useSkill() {
+      if (state.mode !== "playing" || state.skillCd > 0) return;
+      state.slowTimer = 3;
+      state.skillCd = 15;
+      burst(player.x + 18, player.y + 28, palette.teal, 18);
+      sounds.skill();
+    }
+
+    function burst(x, y, color, count) {
+      for (let i = 0; i < count; i += 1) {
+        state.particles.push({
+          x,
+          y,
+          vx: (Math.random() - 0.5) * 130,
+          vy: (Math.random() - 0.75) * 120,
+          life: 0.45 + Math.random() * 0.35,
+          color
+        });
+      }
+    }
+
+    function die(reason) {
+      if (state.mode !== "playing") return;
+      state.mode = "gameover";
+      state.deathReason = reason;
+      state.best = Math.max(state.best, Math.floor(state.score));
+      localStorage.setItem("moonCorridorBest", String(state.best));
+      sounds.death();
+      burst(player.x + 18, player.y + 32, palette.red, 24);
+    }
+
+    function update(dt) {
+      if (state.mode === "loading" && performance.now() >= state.loadingUntil) state.mode = "playing";
+      if (state.mode !== "playing") {
+        updateParticles(dt);
+        return;
+      }
+
+      state.time += dt;
+      state.speedUnit = Math.min(15, 6 + state.time * 0.075);
+      const slow = state.slowTimer > 0 ? 0.6 : 1;
+      const pxSpeed = state.speedUnit * 42 * slow;
+      state.scroll += pxSpeed * dt;
+      state.score += 10 * state.combo * dt;
+      state.slowTimer = Math.max(0, state.slowTimer - dt);
+      state.skillCd = Math.max(0, state.skillCd - dt);
+      player.slideCd = Math.max(0, player.slideCd - dt);
+      if (player.sliding) {
+        player.slideTimer -= dt;
+        if (player.slideTimer <= 0) player.sliding = false;
+      }
+
+      ensureMap();
+      player.vy += 1750 * dt;
+      player.y += player.vy * dt;
+
+      const rect = playerRect();
+      const ground = groundUnder(rect);
+      if (ground !== null && player.vy >= 0 && rect.y + rect.h >= ground) {
+        const wasAir = !player.grounded;
+        player.y = ground - player.h;
+        player.vy = 0;
+        player.jumps = 0;
+        player.grounded = true;
+        if (wasAir) {
+          burst(player.x + 18, ground, palette.gold, 5);
+          sounds.land();
+        }
+      } else {
+        player.grounded = false;
+      }
+
+      const pr = playerRect();
+      if (pr.y > H + 80) die("掉进无底加班坑");
+
+      for (const orb of state.orbsList) {
+        const or = worldRect(orb);
+        if (aabb(pr, or)) {
+          orb.taken = true;
+          state.orbs += 1;
+          state.combo = Math.min(3, 1 + Math.floor(state.orbs / 5));
+          state.score += 50 * state.combo;
+          burst(or.x + 9, or.y + 9, palette.gold, 12);
+          sounds.collect();
+        }
+      }
+
+      for (const obstacle of state.obstacles) {
+        const wr = worldRect(obstacle);
+        if (aabb(pr, wr)) die(obstacle.type === "low" ? "没有及时滑过老板横幅" : "撞上文件柜高障碍");
+      }
+
+      for (const laser of state.lasers) {
+        const wr = worldRect(laser);
+        if (Math.sin(state.time * 5 + laser.x * 0.01) > -0.25 && aabb(pr, wr)) die("被截止日期激光扫中");
+      }
+
+      updateParticles(dt);
+    }
+
+    function updateParticles(dt) {
+      state.particles.forEach((p) => {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 340 * dt;
+        p.life -= dt;
+      });
+      state.particles = state.particles.filter((p) => p.life > 0);
+    }
+
+    function drawPixelRect(x, y, w, h, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      drawBackground();
+      if (state.mode !== "menu") {
+        drawWorld();
+        drawBosses();
+        drawPlayer();
+        drawHud();
+      } else {
+        drawWorldPreview();
+      }
+      drawParticles();
+      if (state.mode === "menu") drawMenu();
+      if (state.mode === "loading") drawCenterPanel("LOADING", "漫长工位正在延展...");
+      if (state.mode === "paused") drawCenterPanel("PAUSED", "按 P 继续");
+      if (state.mode === "gameover") drawGameOver();
+    }
+
+    function drawBackground() {
+      drawPixelRect(0, 0, W, H, palette.sky);
+      drawPixelRect(0, 0, W, H, "rgba(35, 38, 48, 0.62)");
+      for (let x = -80; x < W + 120; x += 160) {
+        const sx = x - (state.scroll * 0.08) % 160;
+        drawPixelRect(sx, 54, 94, 10, "#e8e2c6");
+        drawPixelRect(sx + 10, 64, 74, 5, "rgba(242, 193, 78, 0.35)");
+      }
+      for (let i = -2; i < 12; i += 1) {
+        const x = i * 126 - (state.scroll * 0.22) % 126;
+        drawPixelRect(x, 278, 112, 92, "#151927");
+        drawPixelRect(x + 10, 294, 40, 26, "#58d1c9");
+        drawPixelRect(x + 58, 300, 28, 8, "#928a74");
+        drawPixelRect(x + 12, 334, 88, 10, "#5d536f");
+        drawPixelRect(x + 24, 344, 8, 30, "#2a183c");
+        drawPixelRect(x + 78, 344, 8, 30, "#2a183c");
+      }
+      for (let i = 0; i < 26; i += 1) {
+        const x = (i * 97 - state.scroll * 0.12) % (W + 60);
+        const y = 96 + (i * 37) % 130;
+        drawPixelRect(x, y, 22, 28, i % 2 ? "#20283a" : "#2a183c");
+        drawPixelRect(x + 4, y + 5, 14, 3, palette.gold);
+      }
+    }
+
+    function drawWorldPreview() {
+      for (let x = 0; x < W; x += TILE) {
+        drawTile(x, GROUND_Y, TILE, H - GROUND_Y);
+      }
+      drawBosses();
+      drawOfficeWorker(PLAYER_X, GROUND_Y - 70, false);
+    }
+
+    function drawWorld() {
+      state.solids.forEach((solid) => {
+        const x = solid.x - state.scroll;
+        if (x > W || x + solid.w < -80) return;
+        for (let tx = x; tx < x + solid.w; tx += TILE) drawTile(tx, solid.y, TILE, solid.h);
+      });
+
+      state.obstacles.forEach((o) => {
+        const x = o.x - state.scroll;
+        if (x > W || x + o.w < -80) return;
+        if (o.type === "low") {
+          drawPixelRect(x, o.y, o.w, o.h, "#5d536f");
+          drawPixelRect(x + 5, o.y + 7, o.w - 10, 8, palette.gold);
+          drawText("KPI", x + o.w / 2, o.y + 27, 16, palette.moon, "center");
+        } else {
+          drawPixelRect(x, o.y, o.w, o.h, "#3a4358");
+          drawPixelRect(x + 6, o.y + 8, o.w - 12, 7, palette.gold);
+          drawPixelRect(x + 7, o.y + 24, o.w - 14, 6, "#928a74");
+          drawPixelRect(x + 7, o.y + 38, o.w - 14, 6, "#928a74");
+          drawPixelRect(x + 12, o.y - 18, 12, 18, palette.red);
+        }
+      });
+
+      state.lasers.forEach((l) => {
+        const x = l.x - state.scroll;
+        if (x > W || x + l.w < -80) return;
+        const active = Math.sin(state.time * 5 + l.x * 0.01) > -0.25;
+        drawPixelRect(x - 8, l.y - 14, l.w + 16, 14, palette.stone);
+        drawText("DDL", x + l.w / 2, l.y - 24, 14, palette.red, "center");
+        drawPixelRect(x, l.y, l.w, l.h, active ? "rgba(232, 95, 92, 0.82)" : "rgba(232, 95, 92, 0.18)");
+        if (active) drawPixelRect(x - 8, l.y, l.w + 16, l.h, "rgba(232, 95, 92, 0.18)");
+      });
+
+      state.orbsList.forEach((orb) => {
+        const x = orb.x - state.scroll;
+        if (x > W || x + orb.w < -40) return;
+        const bob = Math.sin(state.time * 6 + orb.x) * 4;
+        drawPixelRect(x + 3, orb.y + 3 + bob, 13, 15, palette.gold);
+        drawPixelRect(x + 5, orb.y + bob, 9, 5, palette.moon);
+        drawPixelRect(x + 16, orb.y + 8 + bob, 5, 6, palette.gold);
+        drawPixelRect(x + 6, orb.y + 7 + bob, 7, 5, "#5b341f");
+      });
+    }
+
+    function drawTile(x, y, w, h) {
+      drawPixelRect(x, y, w, h, "#232a3b");
+      drawPixelRect(x, y, w, 7, "#8b6f4e");
+      drawPixelRect(x + 2, y + 11, 26, 5, "#5d536f");
+      drawPixelRect(x + 5, y + 33, 8, 5, palette.black);
+      drawPixelRect(x + 20, y + 58, 8, 5, "#2a183c");
+    }
+
+    function drawPlayer() {
+      const x = player.x;
+      const y = player.y;
+      if (player.sliding) {
+        drawOfficeWorker(x, y, true);
+        return;
+      }
+      drawOfficeWorker(x, y, false);
+    }
+
+    function drawOfficeWorker(x, y, sliding) {
+      if (sliding) {
+        drawPixelRect(x, y + 34, 54, 34, "#e8e2c6");
+        drawPixelRect(x + 6, y + 44, 12, 8, palette.black);
+        drawPixelRect(x + 38, y + 22, 12, 18, "#58d1c9");
+        drawPixelRect(x - 12, y + 60, 18, 7, "#d45f3f");
+        drawPixelRect(x + 12, y + 26, 22, 8, "#ffffff");
+        return;
+      }
+      const run = Math.floor(state.time * 12) % 2;
+      drawPixelRect(x + 4, y + 7, 28, 31, "#e8e2c6");
+      drawPixelRect(x + 10, y, 18, 12, "#e8e2c6");
+      drawPixelRect(x + 14, y + 15, 5, 5, palette.black);
+      drawPixelRect(x + 31, y + 24, 17, 15, "#58d1c9");
+      drawPixelRect(x + 7, y + 38, 25, 24, "#f2c14e");
+      drawPixelRect(x + 11, y + 42, 17, 6, "#ffffff");
+      drawPixelRect(x + (run ? 4 : 18), y + 62, 9, 12, "#24324a");
+      drawPixelRect(x + (run ? 23 : 9), y + 62, 9, 12, "#24324a");
+      drawPixelRect(x - 10, y + 32, 12, 7, state.slowTimer > 0 ? palette.teal : "#d45f3f");
+    }
+
+    function drawBosses() {
+      const bob = Math.floor(state.time * 10) % 2;
+      drawBoss(48, GROUND_Y - 92 + bob * 3, 44, 92, "高老板");
+      drawBoss(94, GROUND_Y - 60 - bob * 2, 42, 60, "矮老板");
+    }
+
+    function drawBoss(x, y, w, h, label) {
+      const suit = label === "高老板" ? "#3b2038" : "#472c22";
+      drawPixelRect(x, y + 12, w, h - 20, suit);
+      drawPixelRect(x + 8, y, w - 16, 20, "#e0b28b");
+      drawPixelRect(x + 13, y + 7, 5, 5, palette.black);
+      drawPixelRect(x + w - 18, y + 7, 5, 5, palette.black);
+      drawPixelRect(x + 14, y + 26, w - 28, 8, palette.red);
+      drawPixelRect(x - 10, y + 36, 10, 12, "#e0b28b");
+      drawPixelRect(x + w, y + 32, 12, 12, "#e0b28b");
+      drawPixelRect(x + 5, y + h - 8, 12, 12, palette.black);
+      drawPixelRect(x + w - 17, y + h - 8, 12, 12, palette.black);
+      drawText(label === "高老板" ? "BOSS" : "HR", x + w / 2, y - 14, 13, palette.red, "center");
+    }
+
+    function drawParticles() {
+      state.particles.forEach((p) => drawPixelRect(p.x, p.y, 5, 5, p.color));
+    }
+
+    function drawHud() {
+      drawText(`SCORE ${Math.floor(state.score)}`, 24, 34, 22, palette.moon, "left");
+      drawText(`x${state.combo}`, 24, 62, 20, palette.gold, "left");
+      const cdText = state.slowTimer > 0 ? `SLOW ${state.slowTimer.toFixed(1)}` : state.skillCd > 0 ? `CD ${Math.ceil(state.skillCd)}` : "E READY";
+      drawText(cdText, W - 24, 34, 22, state.skillCd > 0 && state.slowTimer <= 0 ? "#928a74" : palette.teal, "right");
+      drawText(`SPD ${state.speedUnit.toFixed(1)}`, W - 24, 62, 18, palette.gold, "right");
+    }
+
+    function drawMenu() {
+      drawText("OFFICE ESCAPE", W / 2, 126, 52, palette.gold, "center");
+      drawText("打工人穿过漫长工位 / 后面两个老板在追", W / 2, 176, 20, palette.moon, "center");
+      drawButton(W / 2 - 130, 226, 260, 54, "START");
+      drawButton(W / 2 - 130, 296, 260, 54, state.sound ? "SOUND ON" : "SOUND OFF");
+      drawText(`BEST SCORE ${state.best}`, W / 2, 384, 22, palette.moon, "center");
+      drawText("SPACE 跳跃 / SHIFT 滑行 / E 减速 / P 暂停", W / 2, 430, 18, "#928a74", "center");
+    }
+
+    function drawGameOver() {
+      drawCenterPanel("GAME OVER", `${state.deathReason}\nSCORE ${Math.floor(state.score)}  BEST ${state.best}\n按 Space 或点击 START 重来`);
+    }
+
+    function drawCenterPanel(title, body) {
+      drawPixelRect(250, 150, 460, 220, "rgba(8, 9, 15, 0.88)");
+      drawPixelRect(250, 150, 460, 6, "#5d536f");
+      drawPixelRect(250, 364, 460, 6, "#5d536f");
+      drawText(title, W / 2, 210, 40, palette.gold, "center");
+      body.split("\n").forEach((line, index) => drawText(line, W / 2, 258 + index * 30, 20, palette.moon, "center"));
+    }
+
+    function drawButton(x, y, w, h, label) {
+      drawPixelRect(x, y, w, h, palette.gold);
+      drawPixelRect(x + 6, y + 6, w - 12, h - 12, "#2a183c");
+      drawText(label, x + w / 2, y + 34, 22, palette.moon, "center");
+    }
+
+    function drawText(text, x, y, size, color, align) {
+      ctx.font = `700 ${size}px "Courier New", monospace`;
+      ctx.textAlign = align;
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = palette.black;
+      ctx.fillText(text, x + 3, y + 3);
+      ctx.fillStyle = color;
+      ctx.fillText(text, x, y);
+    }
+
+    function handlePointer(x, y, type) {
+      const rect = canvas.getBoundingClientRect();
+      const cx = (x - rect.left) * W / rect.width;
+      const cy = (y - rect.top) * H / rect.height;
+      if (state.mode === "menu" && type === "down") {
+        if (cx >= W / 2 - 130 && cx <= W / 2 + 130 && cy >= 226 && cy <= 280) resetGame();
+        if (cx >= W / 2 - 130 && cx <= W / 2 + 130 && cy >= 296 && cy <= 350) state.sound = !state.sound;
+        return;
+      }
+      if (state.mode === "gameover" && type === "down") {
+        resetGame();
+        return;
+      }
+      if (type === "down") {
+        if (cx < W / 2) jump();
+        else startSlide();
+      }
+      if (type === "up") {
+        player.sliding = false;
+      }
+    }
+
+    window.addEventListener("keydown", (event) => {
+      if (event.code === "Space") {
+        event.preventDefault();
+        jump();
+      }
+      if (event.code === "ShiftLeft" || event.code === "ShiftRight") startSlide();
+      if (event.code === "KeyE") useSkill();
+      if (event.code === "KeyP") {
+        if (state.mode === "playing") state.mode = "paused";
+        else if (state.mode === "paused") state.mode = "playing";
+      }
+    });
+
+    canvas.addEventListener("pointerdown", (event) => {
+      canvas.setPointerCapture(event.pointerId);
+      handlePointer(event.clientX, event.clientY, "down");
+    });
+    canvas.addEventListener("pointerup", (event) => handlePointer(event.clientX, event.clientY, "up"));
+    canvas.addEventListener("pointercancel", () => { player.sliding = false; });
+
+    function loop(now) {
+      const dt = Math.min(0.033, (now - lastFrame) / 1000);
+      lastFrame = now;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    function bootPreview() {
+      state.solids = [{ x: -300, y: GROUND_Y, w: 1700, h: H - GROUND_Y }];
+      state.scroll = 0;
+      draw();
+    }
+
+    bootPreview();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
