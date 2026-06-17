@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Pixel Maze 🎮</title>
+    <style>
+        /* 复古像素风字体与背景设置 */
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        body {
+            background-color: #1a0033; /* 深紫色背景 */
+            color: #fff;
+            font-family: 'Press Start 2P', 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        h1 {
+            color: #ff007f; /* 霓虹粉 */
+            font-size: 18px;
+            margin-bottom: 5px;
+            text-shadow: 3px 3px #00ffff;
+            text-align: center;
+        }
+
+        .subtitle {
+            font-size: 8px;
+            color: #00ffcc;
+            margin-bottom: 20px;
+        }
+
+        /* 游戏主容器 */
+        #game-container {
+            position: relative;
+            background-color: #2b0054;
+            border: 6px solid #3d0075;
+            box-shadow: 0 0 20px #00ffff, inset 0 0 10px #ff007f;
+            padding: 4px;
+        }
+
+        /* 迷宫网格 */
+        #maze {
+            display: grid;
+            background-color: #0d001a; /* 墙壁颜色：深邃蓝紫 */
+        }
+
+        /* 格子基础样式 */
+        .cell {
+            width: 24px;
+            height: 24px;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        /* 要求的配色实现 */
+        .wall {
+            background-color: #1f1245; /* 蓝紫色墙体 */
+            border: 2px solid #3d218a;
+        }
+
+        .path {
+            background-color: #ffd700; /* 通道：明亮黄 */
+            box-shadow: inset 0 0 4px rgba(0,0,0,0.15);
+        }
+
+        /* 玩家：绿色像素方块+动态 */
+        #player {
+            background-color: #00ffcc; /* 霓虹绿/青 */
+            border: 2px solid #00aa88;
+            box-shadow: 0 0 8px #00ffcc;
+            width: 80%;
+            height: 80%;
+            position: absolute;
+            top: 10%;
+            left: 10%;
+            transition: all 0.1s ease;
+            z-index: 10;
+        }
+
+        /* 终点：紫色像素小爱心 */
+        .goal {
+            background-color: #ffd700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 纯CSS绘制的巴比特像素爱心 */
+        .pixel-heart {
+            position: relative;
+            width: 12px;
+            height: 12px;
+            background-color: #ff007f; /* 丰满的桃红色 */
+            animation: pulse 0.6s infinite alternate;
+        }
+        .pixel-heart::before, .pixel-heart::after {
+            content: "";
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: #ff007f;
+        }
+        .pixel-heart::before { top: -6px; left: 0; }
+        .pixel-heart::after { left: 6px; top: 0; }
+
+        @keyframes pulse {
+            to { transform: scale(1.15); }
+        }
+
+        /* 装饰用的零散小像素点 */
+        .deco-dot {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background-color: #9400d3; /* 独角兽紫 */
+            opacity: 0.4;
+            top: 30%; left: 40%;
+        }
+
+        /* 恭喜通关弹窗 */
+        #win-screen {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(13, 0, 26, 0.9);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            text-align: center;
+        }
+
+        #win-screen h2 {
+            color: #00ffcc;
+            font-size: 16px;
+            text-shadow: 2px 2px #ff007f;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        #btn-restart {
+            font-family: 'Press Start 2P', monospace;
+            background-color: #ff007f;
+            color: white;
+            border: 4px solid #fff;
+            padding: 10px 15px;
+            font-size: 10px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 #00ffff;
+        }
+        #btn-restart:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0 #00ffff;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>PIXEL MAZE</h1>
+    <div class="subtitle">USE ARROWS TO FIND THE HEART</div>
+
+    <div id="game-container">
+        <div id="maze"></div>
+        
+        <div id="win-screen">
+            <h2>🎉 CONGRATS!<br><br>你成功找到心心了！</h2>
+            <button id="btn-restart">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <script>
+        // 迷宫行列配置（奇数最适合算法生成）
+        const ROWS = 15;
+        const COLS = 19;
+
+        let mazeData = [];
+        let playerX = 1;
+        let playerY = 1;
+        const goalX = COLS - 2;
+        const goalY = ROWS - 2;
+
+        const mazeElement = document.getElementById('maze');
+        const winScreen = document.getElementById('win-screen');
+        const restartBtn = document.getElementById('btn-restart');
+
+        // 1. 自动生成不规则迷宫 (随机 Prim 算法)
+        function generateMaze() {
+            mazeData = Array(ROWS).fill().map(() => Array(COLS).fill(0)); // 0是墙，1是路
+            
+            const walls = [];
+            mazeData[1][1] = 1;
+
+            function addWalls(r, c) {
+                const dirs = [[-2,0], [2,0], [0,-2], [0,2]];
+                dirs.forEach(([dr, dc]) => {
+                    const nr = r + dr, nc = c + dc;
+                    if (nr > 0 && nr < ROWS-1 && nc > 0 && nc < COLS-1 && mazeData[nr][nc] === 0) {
+                        walls.push([r, c, nr, nc]);
+                    }
+                });
+            }
+
+            addWalls(1, 1);
+
+            while (walls.length > 0) {
+                const randomIndex = Math.floor(Math.random() * walls.length);
+                const [cr, cc, nr, nc] = walls[randomIndex];
+                walls.splice(randomIndex, 1);
+
+                if (mazeData[nr][nc] === 0) {
+                    mazeData[nr][nc] = 1;
+                    mazeData[(cr + nr) / 2][(cc + nc) / 2] = 1;
+                    addWalls(nr, nc);
+                }
+            }
+            // 确保终点联通
+            mazeData[goalY][goalX] = 1;
+        }
+
+        // 2. 渲染迷宫到 HTML 页面
+        function renderMaze() {
+            mazeElement.innerHTML = '';
+            mazeElement.style.gridTemplateColumns = `repeat(${COLS}, 24px)`;
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell ' + (mazeData[r][c] === 1 ? 'path' : 'wall');
+                    cell.id = `cell-${r}-${c}`;
+
+                    // 给黄色通道加点紫色像素装饰，增强视觉丰富度
+                    if (mazeData[r][c] === 1 && Math.random() < 0.15 && !(r===1 && c===1) && !(r===goalY && c===goalX)) {
+                        const dot = document.createElement('div');
+                        dot.className = 'deco-dot';
+                        cell.appendChild(dot);
+                    }
+
+                    // 渲染终点心心
+                    if (r === goalY && c === goalX) {
+                        cell.classList.add('goal');
+                        const heart = document.createElement('div');
+                        heart.className = 'pixel-heart';
+                        cell.appendChild(heart);
+                    }
+
+                    mazeElement.appendChild(cell);
+                }
+            }
+            // 放置玩家
+            drawPlayer();
+        }
+
+        // 3. 绘制玩家位置
+        function drawPlayer() {
+            // 移除旧玩家位置
+            const oldPlayer = document.getElementById('player');
+            if (oldPlayer) oldPlayer.remove();
+
+            // 在当前格子插入玩家
+            const currentCell = document.getElementById(`cell-${playerY}-${playerX}`);
+            const player = document.createElement('div');
+            player.id = 'player';
+            currentCell.appendChild(player);
+        }
+
+        // 4. 监听键盘箭头移动
+        window.addEventListener('keydown', (e) => {
+            if (winScreen.style.display === 'flex') return; // 通关后锁死移动
+
+            let nextX = playerX;
+            let nextY = playerY;
+
+            if (e.key === 'ArrowUp' || e.key === 'w') nextY--;
+            else if (e.key === 'ArrowDown' || e.key === 's') nextY++;
+            else if (e.key === 'ArrowLeft' || e.key === 'a') nextX--;
+            else if (e.key === 'ArrowRight' || e.key === 'd') nextX++;
+            else return; // 其它按键不管
+
+            // 边缘和墙壁碰撞检测
+            if (nextX >= 0 && nextX < COLS && nextY >= 0 && nextY < ROWS) {
+                if (mazeData[nextY][nextX] === 1) {
+                    playerX = nextX;
+                    playerY = nextY;
+                    drawPlayer();
+                    checkWin();
+                }
+            }
+            // 阻止方向键让网页滚动
+            e.preventDefault();
+        });
+
+        // 5. 检查胜利
+        function checkWin() {
+            if (playerX === goalX && playerY === goalY) {
+                setTimeout(() => {
+                    winScreen.style.display = 'flex';
+                }, 200);
+            }
+        }
+
+        // 6. 重新开始游戏
+        function initGame() {
+            playerX = 1;
+            playerY = 1;
+            winScreen.style.display = 'none';
+            generateMaze();
+            renderMaze();
+        }
+
+        restartBtn.addEventListener('click', initGame);
+
+        // 启动！
+        initGame();
+    </script>
+</body>
+</html>
