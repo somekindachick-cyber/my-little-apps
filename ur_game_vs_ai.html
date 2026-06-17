@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Royal Game of Ur - VS AI 👑</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Noto+Serif+SC:wght@700&display=swap');
+
+        body {
+            background-color: #15110d;
+            color: #e0d5c1;
+            font-family: 'Noto Serif SC', 'Cinzel', serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #d4af37;
+            text-shadow: 2px 2px #000;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+
+        .status-panel {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #ffd700;
+            height: 30px;
+            text-align: center;
+        }
+
+        /* 棋盘主体 */
+        #board-container {
+            background: #2e2317;
+            border: 8px solid #1a120b;
+            border-radius: 4px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.7);
+            padding: 10px;
+            display: grid;
+            grid-template-rows: repeat(3, 70px);
+            gap: 5px;
+        }
+
+        .row {
+            display: flex;
+            gap: 5px;
+        }
+
+        /* 棋格样式 */
+        .cell {
+            width: 70px;
+            height: 70px;
+            background-color: #4a3b2c;
+            border: 2px solid #5c4a37;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            cursor: pointer;
+            font-size: 24px;
+        }
+
+        /* 星形安全格（Rosette） */
+        .rosette {
+            background-color: #8c2d19;
+            border: 2px solid #b3361e;
+            color: #ffd700;
+        }
+        .rosette::after {
+            content: "✵";
+            font-size: 32px;
+            opacity: 0.7;
+        }
+
+        /* 空白占位格 */
+        .empty {
+            background: transparent;
+            border: none;
+            cursor: default;
+        }
+
+        /* 棋子 */
+        .piece {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            position: absolute;
+            z-index: 10;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .piece.player1 {
+            background: radial-gradient(circle, #ffffff 30%, #a0a0a0 90%);
+            border: 3px solid #404040;
+            color: #333;
+        }
+
+        .piece.player2 {
+            background: radial-gradient(circle, #453525 30%, #110d08 90%);
+            border: 3px solid #d4af37;
+            color: #ffd700;
+        }
+
+        /* 控制区 */
+        .controls {
+            margin-top: 25px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        button {
+            background-color: #8c2d19;
+            color: #ffd700;
+            border: 2px solid #ffd700;
+            padding: 10px 25px;
+            font-size: 16px;
+            font-family: inherit;
+            cursor: pointer;
+            border-radius: 4px;
+            box-shadow: 0 4px #5c1e11;
+        }
+
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px #5c1e11;
+        }
+
+        button:disabled {
+            background-color: #555;
+            color: #888;
+            border-color: #777;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .dice-result {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffd700;
+            min-width: 50px;
+        }
+
+        .pool-info {
+            font-size: 14px;
+            color: #aaa;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>乌尔王族局戏 👑 <span style="font-size:14px; color:#ff007f;">人机对战版</span></h1>
+    <div class="status-panel" id="status">加载中...</div>
+
+    <div class="pool-info">🧑 你的白子（1-7号） 待投: <span id="p1-pool">7</span> | 已通关: <span id="p1-done">0</span></div>
+    <div class="pool-info">🤖 电脑黑子（金边） 待投: <span id="p2-pool">7</span> | 已通关: <span id="p2-done">0</span></div>
+    <br>
+
+    <!-- 棋盘渲染区 -->
+    <div id="board-container"></div>
+
+    <div class="controls">
+        <button id="btn-roll">掷金字塔骰子</button>
+        <div class="dice-result" id="dice-val">0 步</div>
+    </div>
+
+    <script>
+        const boardLayout = [
+            [0, 0, 0, 0, -1, -1, 0, 1], // 行 0 (白方专属/公用段)
+            [0, 0, 0, 1,  0,  0, 0, 0], // 行 1 (中央商道-生死厮杀区)
+            [0, 0, 0, 0, -1, -1, 0, 1]  // 行 2 (黑方专属/公用段)
+        ];
+
+        const p1Path = [[0,3], [0,2], [0,1], [0,0], [1,0], [1,1], [1,2], [1,3], [1,4], [1,5], [1,6], [1,7], [0,7], [0,6]];
+        const p2Path = [[2,3], [2,2], [2,1], [2,0], [1,0], [1,1], [1,2], [1,3], [1,4], [1,5], [1,6], [1,7], [2,7], [2,6]];
+
+        let p1Positions = Array(7).fill(-1); 
+        let p2Positions = Array(7).fill(-1); 
+
+        let currentPlayer = 1; // 1: 玩家(白), 2: 电脑(黑)
+        let currentRoll = 0;
+        let hasRolled = false;
+
+        const boardContainer = document.getElementById('board-container');
+        const statusEl = document.getElementById('status');
+        const diceValEl = document.getElementById('dice-val');
+        const rollBtn = document.getElementById('btn-roll');
+
+        function createBoard() {
+            boardContainer.innerHTML = '';
+            for (let r = 0; r < 3; r++) {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'row';
+                for (let c = 0; c < 8; c++) {
+                    const cellDiv = document.createElement('div');
+                    if (boardLayout[r][c] === -1) {
+                        cellDiv.className = 'cell empty';
+                    } else {
+                        cellDiv.className = 'cell';
+                        cellDiv.dataset.r = r;
+                        cellDiv.dataset.c = c;
+                        if (boardLayout[r][c] === 1) cellDiv.classList.add('rosette');
+                        cellDiv.addEventListener('click', () => handleCellClick(r, c));
+                    }
+                    rowDiv.appendChild(cellDiv);
+                }
+                boardContainer.appendChild(rowDiv);
+            }
+        }
+
+        function updateBoard() {
+            document.querySelectorAll('.piece').forEach(p => p.remove());
+
+            p1Positions.forEach((posIdx, pIdx) => {
+                if (posIdx >= 0 && posIdx < p1Path.length) {
+                    createPieceElement(p1Path[posIdx][0], p1Path[posIdx][1], 'player1', pIdx + 1);
+                }
+            });
+
+            p2Positions.forEach((posIdx, pIdx) => {
+                if (posIdx >= 0 && posIdx < p2Path.length) {
+                    createPieceElement(p2Path[posIdx][0], p2Path[posIdx][1], 'player2', pIdx + 1);
+                }
+            });
+
+            document.getElementById('p1-pool').innerText = p1Positions.filter(p => p === -1).length;
+            document.getElementById('p1-done').innerText = p1Positions.filter(p => p === 99).length;
+            document.getElementById('p2-pool').innerText = p2Positions.filter(p => p === -1).length;
+            document.getElementById('p2-done').innerText = p2Positions.filter(p => p === 99).length;
+
+            if (checkWinner()) return;
+
+            // 如果当前轮到电脑，自动触发电脑AI逻辑
+            if (currentPlayer === 2 && !hasRolled) {
+                rollBtn.disabled = true;
+                setTimeout(aiTurn, 1000);
+            }
+        }
+
+        function createPieceElement(r, c, className, num) {
+            const cell = document.querySelector(`[data-r='${r}'][data-c='${c}']`);
+            if (cell) {
+                const p = document.createElement('div');
+                p.className = `piece ${className}`;
+                p.innerText = num;
+                cell.appendChild(p);
+            }
+        }
+
+        function rollDice() {
+            if (hasRolled || currentPlayer === 2) return;
+            
+            currentRoll = 0;
+            for (let i = 0; i < 4; i++) {
+                if (Math.random() < 0.5) currentRoll++;
+            }
+
+            diceValEl.innerText = currentRoll + " 步";
+            hasRolled = true;
+            rollBtn.disabled = true;
+
+            if (currentRoll === 0) {
+                statusEl.innerText = `💥 尴尬！你掷出了 0 步，电脑接过回合。`;
+                setTimeout(switchPlayer, 1500);
+            } else {
+                if (!hasValidMoves(1, currentRoll)) {
+                    statusEl.innerText = `你无棋可走！自动跳过...`;
+                    setTimeout(switchPlayer, 1500);
+                } else {
+                    statusEl.innerText = `请点击你想移动的棋子格（或点击你新子入场后的格子）`;
+                }
+            }
+        }
+
+        function handleCellClick(r, c) {
+            if (!hasRolled || currentRoll === 0 || currentPlayer === 2) return;
+
+            let chosenPieceIdx = -1;
+            let clickedPosIdx = p1Path.findIndex(([pr, pc]) => pr === r && pc === c);
+
+            if (clickedPosIdx !== -1 && p1Positions.includes(clickedPosIdx)) {
+                chosenPieceIdx = p1Positions.indexOf(clickedPosIdx);
+            } else if (clickedPosIdx === currentRoll - 1) {
+                chosenPieceIdx = p1Positions.indexOf(-1);
+            }
+
+            if (chosenPieceIdx === -1) return;
+
+            let currentPos = p1Positions[chosenPieceIdx];
+            let nextPos = currentPos + currentRoll;
+
+            if (isValidMove(1, currentPos, nextPos, p1Positions, p2Positions, p1Path, p2Path, currentRoll)) {
+                executeMove(1, chosenPieceIdx, nextPos);
+            }
+        }
+
+        // --- 🧠 电脑大祭司 AI 核心逻辑 ---
+        function aiTurn() {
+            // 1. 电脑掷骰子
+            currentRoll = 0;
+            for (let i = 0; i < 4; i++) {
+                if (Math.random() < 0.5) currentRoll++;
+            }
+            diceValEl.innerText = currentRoll + " 步";
+            hasRolled = true;
+
+            if (currentRoll === 0) {
+                statusEl.innerText = `🟢 电脑掷出了 0 步，轮到你了！`;
+                setTimeout(switchPlayer, 1500);
+                return;
+            }
+
+            // 2. 搜集所有合法的移动选项，并给它们打分
+            let validMoves = [];
+            p2Positions.forEach((pos, pIdx) => {
+                let nextPos = pos + currentRoll;
+                if (isValidMove(2, pos, nextPos, p2Positions, p1Positions, p2Path, p1Path, currentRoll)) {
+                    let score = 0;
+                    
+                    // 策略 1：如果这一步能直接“通关”，权重极高
+                    if (nextPos === p2Path.length) {
+                        score += 100;
+                    } else {
+                        const [nr, nc] = p2Path[nextPos];
+                        
+                        // 策略 2：可以吃掉玩家的棋子！权重最高
+                        let canEat = p1Positions.some(pPos => pPos !== -1 && pPos !== 99 && p1Path[pPos][0] === nr && p1Path[pPos][1] === nc);
+                        if (canEat) score += 200;
+
+                        // 策略 3：可以踩中星形安全格
+                        if (boardLayout[nr][nc] === 1) score += 90;
+
+                        // 策略 4：往前推进，越接近终点的子越优先，鼓励进攻
+                        score += nextPos * 2;
+                    }
+                    
+                    validMoves.push({ pieceIdx: pIdx, nextPos: nextPos, score: score });
+                }
+            });
+
+            // 3. 电脑做出决断
+            if (validMoves.length === 0) {
+                statusEl.innerText = `🤖 电脑掷出 ${currentRoll} 步但无棋可走，轮到你了。`;
+                setTimeout(switchPlayer, 1500);
+            } else {
+                // 按照评分高低排序，选分数最高的走
+                validMoves.sort((a, b) => b.score - a.score);
+                let bestMove = validMoves[0];
+                
+                statusEl.innerText = `🤖 电脑思考后移动了它的 ${bestMove.pieceIdx + 1} 号棋子...`;
+                setTimeout(() => {
+                    executeMove(2, bestMove.pieceIdx, bestMove.nextPos);
+                }, 1000);
+            }
+        }
+
+        // --- 公共游戏动作核心 ---
+        function executeMove(player, pieceIdx, nextPos) {
+            const myPos = player === 1 ? p1Positions : p2Positions;
+            const oppPos = player === 1 ? p2Positions : p1Positions;
+            const myPath = player === 1 ? p1Path : p2Path;
+            const oppPath = player === 1 ? p2Path : p1Path;
+
+            if (nextPos === myPath.length) {
+                myPos[pieceIdx] = 99; // 通关
+                statusEl.innerText = `${player === 1 ? '🧑 你' : '🤖 电脑'}的一枚棋子成功逃脱！`;
+            } else {
+                myPos[pieceIdx] = nextPos;
+                const [nr, nc] = myPath[nextPos];
+
+                // 踢人检测
+                let oppPieceIdx = oppPos.findIndex(pos => pos !== -1 && pos !== 99 && oppPath[pos][0] === nr && oppPath[pos][1] === nc);
+                if (oppPieceIdx !== -1) {
+                    oppPos[oppPieceIdx] = -1; // 回到家
+                    statusEl.innerText = `${player === 1 ? '⚔️ 啪！你踩碎了电脑的棋子！' : '⚡ 糟糕！电脑把你踢回了老家！'}`;
+                }
+
+                // 安全格奖励检测
+                if (boardLayout[nr][nc] === 1) {
+                    statusEl.innerText = `✵ ${player === 1 ? '你' : '电脑'}踩中星形格！触发神秘力量，奖励再掷一次！`;
+                    hasRolled = false;
+                    if (player === 1) rollBtn.disabled = false;
+                    updateBoard();
+                    return; 
+                }
+            }
+
+            switchPlayer();
+        }
+
+        function isValidMove(player, curr, next, myPos, oppPos, myPath, oppPath, roll) {
+            if (next >= myPath.length) return next === myPath.length;
+            if (myPos.includes(next)) return false;
+
+            const [nr, nc] = myPath[next];
+            let hasOpponent = oppPos.some(pos => pos !== -1 && pos !== 99 && oppPath[pos][0] === nr && oppPath[pos][1] === nc);
+            
+            if (hasOpponent && boardLayout[nr][nc] === 1) {
+                return false; // 星形格上有敌人，无法落子
+            }
+            return true;
+        }
+
+        function hasValidMoves(player, roll) {
+            const myPos = player === 1 ? p1Positions : p2Positions;
+            const oppPos = player === 1 ? p2Positions : p1Positions;
+            const myPath = player === 1 ? p1Path : p2Path;
+            const oppPath = player === 1 ? p2Path : p1Path;
+
+            return myPos.some(pos => {
+                if (pos === 99) return false;
+                return isValidMove(player, pos, pos + roll, myPos, oppPos, myPath, oppPath, roll);
+            });
+        }
+
+        function switchPlayer() {
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            hasRolled = false;
+            currentRoll = 0;
+            
+            if (currentPlayer === 1) {
+                rollBtn.disabled = false;
+                diceValEl.innerText = "0 步";
+                statusEl.innerText = `🟢 轮到你的回合了，请掷骰子！`;
+            } else {
+                rollBtn.disabled = true;
+                statusEl.innerText = `🔮 电脑正在运筹帷幄...`;
+            }
+            updateBoard();
+        }
+
+        function checkWinner() {
+            if (p1Positions.every(p => p === 99)) {
+                statusEl.innerText = "🏆 恭喜你赢了！你击败了苏美尔大祭司 AI！";
+                rollBtn.disabled = true;
+                return true;
+            } else if (p2Positions.every(p => p === 99)) {
+                statusEl.innerText = "💀 电脑先逃脱了所有棋子，你输了！再接再厉！";
+                rollBtn.disabled = true;
+                return true;
+            }
+            return false;
+        }
+
+        rollBtn.addEventListener('click', rollDice);
+        createBoard();
+        updateBoard();
+    </script>
+</body>
+</html>
