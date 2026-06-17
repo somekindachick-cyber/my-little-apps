@@ -58,7 +58,7 @@
             position: relative;
         }
 
-        /* 要求的配色实现 */
+        /* 配色实现 */
         .wall {
             background-color: #1f1245; /* 蓝紫色墙体 */
             border: 2px solid #3d218a;
@@ -69,9 +69,9 @@
             box-shadow: inset 0 0 4px rgba(0,0,0,0.15);
         }
 
-        /* 玩家：绿色像素方块+动态 */
+        /* 玩家：绿色像素方块 */
         #player {
-            background-color: #00ffcc; /* 霓虹绿/青 */
+            background-color: #00ffcc; /* 霓虹绿 */
             border: 2px solid #00aa88;
             box-shadow: 0 0 8px #00ffcc;
             width: 80%;
@@ -83,34 +83,18 @@
             z-index: 10;
         }
 
-        /* 终点：紫色像素小爱心 */
+        /* 终点样式 */
         .goal {
             background-color: #ffd700;
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-
-        /* 纯CSS绘制的巴比特像素爱心 */
-        .pixel-heart {
-            position: relative;
-            width: 12px;
-            height: 12px;
-            background-color: #ff007f; /* 丰满的桃红色 */
+            font-size: 16px; /* 控制爱心图标大小 */
             animation: pulse 0.6s infinite alternate;
         }
-        .pixel-heart::before, .pixel-heart::after {
-            content: "";
-            position: absolute;
-            width: 12px;
-            height: 12px;
-            background-color: #ff007f;
-        }
-        .pixel-heart::before { top: -6px; left: 0; }
-        .pixel-heart::after { left: 6px; top: 0; }
 
         @keyframes pulse {
-            to { transform: scale(1.15); }
+            to { transform: scale(1.2); }
         }
 
         /* 装饰用的零散小像素点 */
@@ -140,8 +124,9 @@
             color: #00ffcc;
             font-size: 16px;
             text-shadow: 2px 2px #ff007f;
-            line-height: 1.6;
+            line-height: 1.8;
             margin-bottom: 20px;
+            padding: 0 10px;
         }
 
         #btn-restart {
@@ -169,13 +154,12 @@
         <div id="maze"></div>
         
         <div id="win-screen">
-            <h2>🎉 CONGRATS!<br><br>你成功找到心心了！</h2>
+            <h2>🎉 CONGRATS!<br><br>恭喜你找到了你的心！</h2>
             <button id="btn-restart">PLAY AGAIN</button>
         </div>
     </div>
 
     <script>
-        // 迷宫行列配置（奇数最适合算法生成）
         const ROWS = 15;
         const COLS = 19;
 
@@ -191,7 +175,7 @@
 
         // 1. 自动生成不规则迷宫 (随机 Prim 算法)
         function generateMaze() {
-            mazeData = Array(ROWS).fill().map(() => Array(COLS).fill(0)); // 0是墙，1是路
+            mazeData = Array(ROWS).fill().map(() => Array(COLS).fill(0));
             
             const walls = [];
             mazeData[1][1] = 1;
@@ -219,7 +203,6 @@
                     addWalls(nr, nc);
                 }
             }
-            // 确保终点联通
             mazeData[goalY][goalX] = 1;
         }
 
@@ -234,35 +217,30 @@
                     cell.className = 'cell ' + (mazeData[r][c] === 1 ? 'path' : 'wall');
                     cell.id = `cell-${r}-${c}`;
 
-                    // 给黄色通道加点紫色像素装饰，增强视觉丰富度
+                    // 黄色通道加紫色像素点装饰
                     if (mazeData[r][c] === 1 && Math.random() < 0.15 && !(r===1 && c===1) && !(r===goalY && c===goalX)) {
                         const dot = document.createElement('div');
                         dot.className = 'deco-dot';
                         cell.appendChild(dot);
                     }
 
-                    // 渲染终点心心
+                    // 换成爱心icon终点
                     if (r === goalY && c === goalX) {
                         cell.classList.add('goal');
-                        const heart = document.createElement('div');
-                        heart.className = 'pixel-heart';
-                        cell.appendChild(heart);
+                        cell.innerText = '❤️'; 
                     }
 
                     mazeElement.appendChild(cell);
                 }
             }
-            // 放置玩家
             drawPlayer();
         }
 
         // 3. 绘制玩家位置
         function drawPlayer() {
-            // 移除旧玩家位置
             const oldPlayer = document.getElementById('player');
             if (oldPlayer) oldPlayer.remove();
 
-            // 在当前格子插入玩家
             const currentCell = document.getElementById(`cell-${playerY}-${playerX}`);
             const player = document.createElement('div');
             player.id = 'player';
@@ -271,7 +249,7 @@
 
         // 4. 监听键盘箭头移动
         window.addEventListener('keydown', (e) => {
-            if (winScreen.style.display === 'flex') return; // 通关后锁死移动
+            if (winScreen.style.display === 'flex') return;
 
             let nextX = playerX;
             let nextY = playerY;
@@ -280,9 +258,8 @@
             else if (e.key === 'ArrowDown' || e.key === 's') nextY++;
             else if (e.key === 'ArrowLeft' || e.key === 'a') nextX--;
             else if (e.key === 'ArrowRight' || e.key === 'd') nextX++;
-            else return; // 其它按键不管
+            else return;
 
-            // 边缘和墙壁碰撞检测
             if (nextX >= 0 && nextX < COLS && nextY >= 0 && nextY < ROWS) {
                 if (mazeData[nextY][nextX] === 1) {
                     playerX = nextX;
@@ -291,7 +268,6 @@
                     checkWin();
                 }
             }
-            // 阻止方向键让网页滚动
             e.preventDefault();
         });
 
@@ -315,7 +291,6 @@
 
         restartBtn.addEventListener('click', initGame);
 
-        // 启动！
         initGame();
     </script>
 </body>
