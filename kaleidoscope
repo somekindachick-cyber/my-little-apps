@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>动态万花筒小程序</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #222;
+            color: #fff;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .controls {
+            margin-bottom: 20px;
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+        }
+        .btn:hover { background: #0056b3; }
+        label, span { font-size: 14px; }
+        canvas {
+            background: #000;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border-radius: 50%; /* 让万花筒看起来是完美的圆形 */
+        }
+    </style>
+</head>
+<body>
+
+    <h1>幻彩万花筒</h1>
+
+    <div class="controls">
+        <label class="btn" for="upload">上传图片 (可多选)</label>
+        <input type="file" id="upload" accept="image/*" multiple>
+        
+        <div>
+            <label for="segments">碎片数量 (对折度): </label>
+            <input type="range" id="segments" min="4" max="24" step="2" value="12">
+            <span id="seg-val">12</span>
+        </div>
+
+        <div>
+            <label for="speed">旋转速度: </label>
+            <input type="range" id="speed" min="0" max="10" step="1" value="3">
+        </div>
+        
+        <button class="btn" id="next-btn">切换下一张图</button>
+    </div>
+
+    <canvas id="canvas" width="600" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const upload = document.getElementById('upload');
+        const segmentsInput = document.getElementById('segments');
+        const segVal = document.getElementById('seg-val');
+        const speedInput = document.getElementById('speed');
+        const nextBtn = document.getElementById('next-btn');
+
+        let images = [];       // 存放用户上传的图片对象
+        let currentImgIdx = 0; // 当前使用的图片索引
+        let angle = 0;         // 自动旋转的角度
+        let segments = 12;     // 默认切片数量
+        let animationFrameId;
+
+        // 默认生成一个彩色的备用画布（防止用户还没上传图片时画布全黑）
+        let defaultImg = document.createElement('canvas');
+        defaultImg.width = 400;
+        defaultImg.height = 400;
+        const dCtx = defaultImg.getContext('2d');
+        let grad = dCtx.createRadialGradient(200,200,10, 200,200,200);
+        grad.addColorStop(0, 'red'); grad.addColorStop(0.5, 'gold'); grad.addColorStop(1, 'blue');
+        dCtx.fillStyle = grad; dCtx.fillRect(0,0,400,400);
+        images.push(defaultImg);
+
+        // 处理图片上传
+        upload.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files.length === 0) return;
+
+            const loadedImages = [];
+            let loadedCount = 0;
+
+            for (let i = 0; i < files.length; i++) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        loadedImages.push(img);
+                        loadedCount++;
+                        // 当选中的图片全部加载完毕后，替换掉原有的图片库
+                        if (loadedCount === files.length) {
+                            images = loadedImages;
+                            currentImgIdx = 0;
+                        }
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(files[i]);
+            }
+        });
+
+        // 切换下一张图片
+        nextBtn.addEventListener('click', () => {
+            if (images.length > 1) {
+                currentImgIdx = (currentImgIdx + 1) % images.length;
+            }
+        });
+
+        // 监听滑块变化
+        segmentsInput.addEventListener('input', (e) => {
+            segments = parseInt(e.target.value);
+            segVal.innerText = segments;
+        });
+
+        // 核心：万花筒渲染逻辑
+        function drawKaleidoscope() {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const radius = Math.min(cx, cy);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (images.length === 0) return;
+            const img = images[currentImgIdx];
+
+            // 计算每个切片弧度
+            const sliceAngle = (Math.PI * 2) / segments;
+
+            // 随着时间自动增加旋转角度（根据速度滑块）
+            const speed = parseFloat(speedInput.value) * 0.002;
+            angle += speed;
+
+            for (let i = 0; i < segments; i++) {
+                ctx.save();
+                // 1. 平移到画布中心
+                ctx.translate(cx, cy);
+                // 2. 旋转到当前切片的位置
+                ctx.rotate(i * sliceAngle);
+
+                // 3. 创建切片三角形裁剪区域（防止图片重叠溢出）
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, radius, -sliceAngle / 2, sliceAngle / 2);
+                ctx.closePath();
+                ctx.clip();
+
+                // 4. 如果是奇数扇区，进行镜像翻转，形成对称的万花筒图案
+                if (i % 2 === 1) {
+                    ctx.scale(1, -1);
+                }
+
+                // 5. 再次旋转，让图片内部产生动态变化效果
+                ctx.rotate(angle);
+
+                // 6. 绘制图片（居中对齐裁剪区域）
+                // 使用 Math.sin/cos 让图片中心在中心点附近微微晃动，图案会更有流动感
+                const driftX = Math.sin(angle * 0.5) * 20 - (radius);
+                const driftY = Math.cos(angle * 0.3) * 20 - (radius);
+                
+                ctx.drawImage(img, driftX, driftY, radius * 2, radius * 2);
+
+                ctx.restore();
+            }
+
+            animationFrameId = requestAnimationFrame(drawKaleidoscope);
+        }
+
+        // 启动动画
+        drawKaleidoscope();
+    </script>
+</body>
+</html>
