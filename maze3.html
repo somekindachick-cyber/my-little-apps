@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>吴哥幻境：环形双终点迷宫</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0d1111; /* 深邃石窟底色 */
+            color: #e0d8c3; /* 象牙仿古字 */
+            font-family: 'Georgia', serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        h1 {
+            margin: 5px 0;
+            font-size: 26px;
+            letter-spacing: 4px;
+            background: linear-gradient(45deg, #b23b3b, #d4af37, #008080);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(212,175,55,0.2);
+        }
+        #p {
+            margin: 0 0 15px 0;
+            color: #8c8275;
+            font-size: 14px;
+            font-style: italic;
+        }
+        #canvasContainer {
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8), inset 0 0 100px rgba(0,0,0,0.6);
+            border: 2px solid #3a3f35;
+            border-radius: 50%; /* 契合圆形迷宫 */
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            background-color: #161a16; /* 青苔石殿背景 */
+        }
+        #victoryMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 40px;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 0 20px rgba(212, 175, 55, 0.9);
+            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            z-index: 10;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+        #victoryMessage.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>吴哥幻境 · 环形圣殿</h1>
+    <p id="p">穿过青苔与红砂岩的回廊，拖拽神火与圣水归于中心庙宇</p>
+    
+    <div id="canvasContainer">
+        <canvas id="mazeCanvas" width="650" height="650"></canvas>
+        <div id="victoryMessage">🔱 圣殿重燃 🔱<br><span style="font-size:20px;color:#a89f91;">Angkor Miracle</span></div>
+    </div>
+
+<script>
+const canvas = document.getElementById('mazeCanvas');
+const ctx = canvas.getContext('2d');
+const victoryMessage = document.getElementById('victoryMessage');
+
+const cx = canvas.width / 2;
+const cy = canvas.height / 2;
+
+// --- 圆形迷宫核心参数 ---
+const rings = 7;           // 7层环形回廊
+const ringWidth = 40;      // 每层回廊宽度
+const maxRadius = rings * ringWidth;
+
+// 硬编码圆形迷宫的墙壁数据 (1代表有墙)
+// ringWalls: 每层环有多少扇“阻断墙”（把环切断）
+const ringWalls = [
+    [], // 最中心
+    [0, 2],
+    [1, 3, 5],
+    [0, 2, 4, 6],
+    [1, 3, 5, 7],
+    [0, 2, 4, 6, 8, 10],
+    [1, 3, 5, 7, 9, 11]
+];
+// arcWalls: 每层环内圈和外圈之间的连通性 (这里用来做同心圆本身的缺口)
+// 哪些角度开放通路（没有圆弧墙）
+const arcOpenings = [
+    [],
+    [0, 180],
+    [90, 270],
+    [45, 135, 225, 315],
+    [0, 90, 180, 270],
+    [30, 120, 210, 300],
+    [60, 150, 240, 330]
+];
+
+// --- 角色与目标点（吴哥窟配色体系） ---
+const players = {
+    red: { // 太阳神火 - 红砂岩
+        x: cx + Math.cos(0) * (maxRadius - 20),
+        y: cy + Math.sin(0) * (maxRadius - 20),
+        radius: 12,
+        color: '#b23b3b',       // 古朱砂红
+        trailColor: 'rgba(212, 175, 55, 0.4)', // 金色圣火轨迹
+        targetX: cx - 25,       // 终点在中心神殿的左侧
+        targetY: cy,
+        targetColor: '#d4af37', // 梵天碎金
+        history: [],
+        isDragging: false,
+        reached: false
+    },
+    blue: { // 圣殿之水 - 青苔回廊
+        x: cx + Math.cos(Math.PI) * (maxRadius - 20),
+        y: cy + Math.sin(Math.PI) * (maxRadius - 20),
+        radius: 12,
+        color: '#008080',       // 圣殿深苔青
+        trailColor: 'rgba(72, 209, 204, 0.4)', // 翡翠水汽轨迹
+        targetX: cx + 25,       // 终点在中心神殿的右侧
+        targetY: cy,
+        targetColor: '#48d1cc', // 湿婆神坛碧
+        history: [],
+        isDragging: false,
+        reached: false
+    }
+};
+
+let activePlayer = null;
+let fireworks = [];
+let gameWon = false;
+
+function init() {
+    players.red.history.push({x: players.red.x, y: players.red.y});
+    players.blue.history.push({x: players.blue.x, y: players.blue.y});
+}
+
+// --- 数学几何碰撞检测：检测点是否在墙内 ---
+function hitTestWall(x, y) {
+    const dx = x - cx;
+    const dy = y - cy;
+    const dist = Math.hypot(dx, dy);
+    
+    // 超出外郭或进入最内核心殿
+    if (dist > maxRadius || dist < 30) return true;
+
+    const ringIndex = Math.floor(dist / ringWidth);
+    const angleRad = Math.atan2(dy, dx);
+    let angleDeg = angleRad * 180 / Math.PI;
+    if (angleDeg < 0) angleDeg += 360;
+
+    // 1. 检测同心圆弧墙 (是否有缺口可以往内/外层走)
+    const innerR = ringIndex * ringWidth;
+    const outerR = (ringIndex + 1) * ringWidth;
+    
+    // 如果靠近两个环的边缘，检查对应层是否有通行的门（开口）
+    if (Math.abs(dist - innerR) < 6 || Math.abs(dist - outerR) < 6) {
+        const checkRing = Math.abs(dist - innerR) < 6 ? ringIndex : ringIndex + 1;
+        if (checkRing < rings) {
+            const openings = arcOpenings[checkRing];
+            let inOpening = false;
+            for (let op of openings) {
+                if (Math.abs(angleDeg - op) < 20 || Math.abs(angleDeg - (op+360)) < 20) {
+                    inOpening = true;
+                    break;
+                }
+            }
+            if (!inOpening) return true; // 没在门里，撞墙
+        }
+    }
+
+    // 2. 检测放射状隔断墙 (把走廊堵死的横向墙)
+    const walls = ringWalls[ringIndex];
+    if (walls) {
+        const segmentCount = 12; // 360度平分12份
+        const segmentAngle = 360 / segmentCount;
+        for (let wallSeg of walls) {
+            const wallAngle = wallSeg * segmentAngle;
+            if (Math.abs(angleDeg - wallAngle) < 5) {
+                return true; 
+            }
+        }
+    }
+
+    return false;
+}
+
+// 综合多点检测，确保球体有体积
+function canMoveTo(x, y, r) {
+    const checkAngles = [0, Math.PI/4, Math.PI/2, Math.PI*3/4, Math.PI, Math.PI*5/4, Math.PI*3/2, Math.PI*7/4];
+    for (let angle of checkAngles) {
+        const px = x + Math.cos(angle) * (r * 0.8);
+        const py = y + Math.sin(angle) * (r * 0.8);
+        if (hitTestWall(px, py)) return false;
+    }
+    return !hitTestWall(x, y);
+}
+
+// --- 鼠标事件 ---
+function getMousePos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return { eX: e.clientX - rect.left, eY: e.clientY - rect.top };
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    if (gameWon) return;
+    const {eX, eY} = getMousePos(e);
+    for (let key in players) {
+        const p = players[key];
+        if (Math.hypot(eX - p.x, eY - p.y) <= p.radius + 15) {
+            activePlayer = p;
+            p.isDragging = true;
+            break;
+        }
+    }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (!activePlayer || gameWon) return;
+    const {eX, eY} = getMousePos(e);
+
+    // 丝滑微步迭代
+    const steps = 8;
+    let currX = activePlayer.x;
+    let currY = activePlayer.y;
+    const dx = (eX - currX) / steps;
+    const dy = (eY - currY) / steps;
+
+    for (let i = 0; i < steps; i++) {
+        let nextX = currX + dx;
+        let nextY = currY + dy;
+        if (canMoveTo(nextX, currY, activePlayer.radius)) currX = nextX;
+        if (canMoveTo(currX, nextY, activePlayer.radius)) currY = nextY;
+    }
+
+    activePlayer.x = currX;
+    activePlayer.y = currY;
+
+    // 记录运动痕迹
+    const lastPos = activePlayer.history[activePlayer.history.length - 1];
+    if (Math.hypot(activePlayer.x - lastPos.x, activePlayer.y - lastPos.y) > 3) {
+        activePlayer.history.push({x: activePlayer.x, y: activePlayer.y});
+    }
+
+    // 判定到中央神殿的距离
+    if (Math.hypot(activePlayer.x - activePlayer.targetX, activePlayer.y - activePlayer.targetY) < 25) {
+        activePlayer.reached = true;
+    } else {
+        activePlayer.reached = false;
+    }
+
+    if (players.red.reached && players.blue.reached && !gameWon) {
+        gameWon = true;
+        victoryMessage.classList.add('show');
+    }
+});
+
+window.addEventListener('mouseup', () => {
+    if (activePlayer) {
+        activePlayer.isDragging = false;
+        activePlayer = null;
+    }
+});
+
+// --- 吴哥之火：烟花系统 ---
+class Firework {
+    constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = canvas.height;
+        this.targetY = Math.random() * (canvas.height * 0.5) + 50;
+        this.speed = Math.random() * 2 + 3;
+        this.particles = [];
+        this.exploded = false;
+        // 配色：金色、铜红、翡翠绿的吴哥庆典色
+        const colors = ['#d4af37', '#b23b3b', '#48d1cc', '#ff7f50', '#ffd700'];
+        this.color = colors[Math.floor(Math.random() * colors.length)];
+    }
+    update() {
+        if (!this.exploded) {
+            this.y -= this.speed;
+            if (this.y <= this.targetY) {
+                this.exploded = true;
+                this.explode();
+            }
+        } else {
+            for (let i = this.particles.length - 1; i >= 0; i--) {
+                const p = this.particles[i];
+                p.x += p.vx; p.y += p.vy;
+                p.vy += 0.04; p.alpha -= 0.01;
+                if (p.alpha <= 0) this.particles.splice(i, 1);
+            }
+        }
+    }
+    explode() {
+        const count = 70;
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 / count) * i + Math.random();
+            const speed = Math.random() * 5 + 1;
+            this.particles.push({ x: this.x, y: this.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, alpha: 1 });
+        }
+    }
+    draw() {
+        ctx.save();
+        if (!this.exploded) {
+            ctx.fillStyle = this.color;
+            ctx.shadowBlur = 10; ctx.shadowColor = this.color;
+            ctx.fillRect(this.x, this.y, 3, 8);
+        } else {
+            this.particles.forEach(p => {
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 5; ctx.shadowColor = this.color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI * 2); ctx.fill();
+            });
+        }
+        ctx.restore();
+    }
+}
+
+// --- 绘制主画布 ---
+function draw() {
+    // 渲染带有青苔绿意阴影的基底
+    ctx.fillStyle = '#121612';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 1. 绘制圆形迷宫墙体（青苔巨石雕刻感）
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    
+    for (let r = 1; r <= rings; r++) {
+        const radius = r * ringWidth;
+        const openings = arcOpenings[r] || [];
+        
+        ctx.strokeStyle = '#2f3e46'; // 砂岩深色
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = '#1f2421';
+
+        // 绘制带缺口的同心圆墙
+        for (let a = 0; a < 360; a += 2) {
+            let inOpening = false;
+            for (let op of openings) {
+                if (Math.abs(a - op) < 15) { inOpening = true; break; }
+            }
+            if (!inOpening && r < rings) {
+                const rad = a * Math.PI / 180;
+                const nextRad = (a + 2) * Math.PI / 180;
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, rad, nextRad);
+                ctx.stroke();
+            }
+        }
+
+        // 绘制放射状阻断横墙
+        const walls = ringWalls[r - 1];
+        if (walls) {
+            ctx.strokeStyle = '#3a4f50'; // 风化浮雕青
+            walls.forEach(w => {
+                const angle = (w * 30) * Math.PI / 180;
+                ctx.beginPath();
+                ctx.moveTo(cx + Math.cos(angle) * (radius - ringWidth), cy + Math.sin(angle) * (radius - ringWidth));
+                ctx.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
+                ctx.stroke();
+            });
+        }
+    }
+
+    // 2. 绘制最核心：吴哥金顶神庙（中央双终点）
+    ctx.save();
+    ctx.fillStyle = '#242b24';
+    ctx.beginPath(); ctx.arc(cx, cy, 32, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.restore();
+
+    // 绘制终点圣坛
+    for (let key in players) {
+        const p = players[key];
+        ctx.save();
+        ctx.shadowBlur = 15; ctx.shadowColor = p.targetColor;
+        ctx.fillStyle = p.targetColor;
+        ctx.beginPath();
+        ctx.arc(p.targetX, p.targetY, 8, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // 3. 绘制玩家运动的古老“神光轨迹”
+    for (let key in players) {
+        const p = players[key];
+        if (p.history.length > 1) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.strokeStyle = p.trailColor;
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            ctx.shadowBlur = 8; ctx.shadowColor = p.color;
+            ctx.moveTo(p.history[0].x, p.history[0].y);
+            for (let i = 1; i < p.history.length; i++) {
+                ctx.lineTo(p.history[i].x, p.history[i].y);
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    // 4. 绘制神明能量球
+    for (let key in players) {
+        const p = players[key];
+        ctx.save();
+        ctx.shadowBlur = p.isDragging ? 25 : 12; ctx.shadowColor = p.color;
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
+        // 核心高光
+        ctx.fillStyle = '#fffef0';
+        ctx.beginPath(); ctx.arc(p.x - 3, p.y - 3, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+
+    // 5. 华丽的胜利烟花
+    if (gameWon) {
+        if (Math.random() < 0.07 && fireworks.length < 15) fireworks.push(new Firework());
+        for (let i = fireworks.length - 1; i >= 0; i--) {
+            fireworks[i].update(); fireworks[i].draw();
+            if (fireworks[i].exploded && fireworks[i].particles.length === 0) fireworks.splice(i, 1);
+        }
+    }
+
+    requestAnimationFrame(draw);
+}
+
+init();
+draw();
+</script>
+</body>
+</html>
