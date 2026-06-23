@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>吴哥秘境：无尽双色交织</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0d1111;
+            color: #e0d8c3;
+            font-family: 'Georgia', serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+        #header {
+            text-align: center;
+            margin-bottom: 10px;
+            position: relative;
+            width: 600px;
+        }
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: 3px;
+            background: linear-gradient(45deg, #b23b3b, #d4af37, #008080);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        #scoreBoard {
+            position: absolute;
+            right: 0;
+            top: 5px;
+            font-size: 18px;
+            color: #d4af37;
+            font-weight: bold;
+            border: 1px solid #3a3f35;
+            padding: 2px 10px;
+            border-radius: 4px;
+            background: rgba(22, 26, 22, 0.6);
+        }
+        #p {
+            margin: 5px 0 0 0;
+            color: #8c8275;
+            font-size: 13px;
+            font-style: italic;
+        }
+        #canvasContainer {
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+            border: 3px solid #3a3f35;
+            border-radius: 8px;
+            background-color: #141814;
+        }
+        canvas {
+            display: block;
+        }
+        #victoryMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 36px;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            z-index: 10;
+            text-align: center;
+            line-height: 1.5;
+        }
+        #victoryMessage.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <h1>吴哥秘境 · 无尽回廊</h1>
+        <div id="scoreBoard">第 <span id="levelCount">1</span> 关</div>
+        <p id="p">将朱砂红火与孔雀蓝水引向对应图腾。自动生成无限随机关卡。</p>
+    </div>
+    
+    <div id="canvasContainer">
+        <canvas id="mazeCanvas" width="600" height="600"></canvas>
+        <div id="victoryMessage" id="msg">🔱 圣殿重燃 🔱<br><span style="font-size:18px;color:#a89f91;">正在开启下一密境...</span></div>
+    </div>
+
+<script>
+const canvas = document.getElementById('mazeCanvas');
+const ctx = canvas.getContext('2d');
+const victoryMessage = document.getElementById('victoryMessage');
+const levelCountSpan = document.getElementById('levelCount');
+
+// --- 游戏状态 ---
+let level = 1;
+let cols = 15; // 迷宫行列数，可随关卡稍微增加
+let rows = 15;
+let cellSize = canvas.width / cols;
+let mazeGrid = [];
+let players = {};
+let activePlayer = null;
+let fireworks = [];
+let gameWon = false;
+
+// --- 迷宫生成器（DFS算法） ---
+function generateMaze(w, h) {
+    let grid = Array(h).fill().map(() => Array(w).fill(1)); // 1代表墙
+    let stack = [];
+    
+    // 从(1,1)开始
+    grid[1][1] = 0;
+    stack.push({r: 1, c: 1});
+
+    while(stack.length > 0) {
+        let curr = stack[stack.length - 1];
+        let neighbors = [];
+        
+        // 方向：上 下 左 右 (步长为2)
+        const dirs = [{r:-2, c:0}, {r:2, c:0}, {r:0, c:-2}, {r:0, c:2}];
+        
+        for(let d of dirs) {
+            let nr = curr.r + d.r;
+            let nc = curr.c + d.c;
+            if(nr > 0 && nr < h-1 && nc > 0 && nc < w-1 && grid[nr][nc] === 1) {
+                neighbors.push({r: nr, c: nc, wallR: curr.r + d.r/2, wallC: curr.c + d.c/2});
+            }
+        }
+
+        if(neighbors.length > 0) {
+            // 随机选一个邻居
+            let next = neighbors[Math.floor(Math.random() * neighbors.length)];
+            grid[next.wallR][next.wallC] = 0; // 打通墙壁
+            grid[next.r][next.c] = 0;         // 打通目标
+            stack.push({r: next.r, c: next.c});
+        } else {
+            stack.pop();
+        }
+    }
+    return grid;
+}
+
+// --- 寻找迷宫中的合法空地 ---
+function findValidPositions() {
+    let openCells = [];
+    for(let r = 1; r < rows - 1; r++) {
+        for(let c = 1; c < cols - 1; c++) {
+            if(mazeGrid[r][c] === 0) openCells.push({r, c});
+        }
+    }
+    // 打乱顺序
+    openCells.sort(() => Math.random() - 0.5);
+    return openCells;
+}
+
+// --- 初始化新关卡 ---
+function initGame() {
+    gameWon = false;
+    fireworks = [];
+    activePlayer = null;
+    victoryMessage.classList.remove('show');
+    levelCountSpan.innerText = level;
+
+    // 动态调整难度：随关卡增加格子变密集（最大限制在21格防止通道过窄）
+    cols = rows = Math.min(15 + Math.floor(level / 3) * 2, 21);
+    cellSize = canvas.width / cols;
+
+    // 1. 生成不规则随机迷宫
+    mazeGrid = generateMaze(cols, rows);
+
+    // 2. 选取不重复的4个位置（红起、蓝起、红终、蓝终）
+    let spots = findValidPositions();
+    
+    // 为了增加难度，让终点和起点尽量有一些物理距离
+    let p1 = spots[0];
+    let p2 = spots[1];
+    let t1 = spots[spots.length - 1];
+    let t2 = spots[spots.length - 2];
+
+    // 3. 配置角色属性（吴哥窟美化配色，放弃 shadowBlur，改用复合色彩）
+    players = {
+        red: {
+            x: (p1.c + 0.5) * cellSize,
+            y: (p1.r + 0.5) * cellSize,
+            radius: cellSize * 0.35,
+            color: '#b23b3b',       // 朱砂红
+            trailColor: 'rgba(212, 175, 55, 0.35)', // 碎金半透明轨迹
+            targetGrid: {r: t1.r, c: t1.c},
+            targetColor: '#d4af37', // 梵天金
+            history: [],
+            reached: false
+        },
+        blue: {
+            x: (p2.c + 0.5) * cellSize,
+            y: (p2.r + 0.5) * cellSize,
+            radius: cellSize * 0.35,
+            color: '#008080',       // 孔雀蓝
+            trailColor: 'rgba(72, 209, 204, 0.35)', // 碧玺绿半透明轨迹
+            targetGrid: {r: t2.r, c: t2.c},
+            targetColor: '#48d1cc', // 古殿碧
+            history: [],
+            reached: false
+        }
+    };
+
+    // 记录初始轨迹
+    players.red.history.push({x: players.red.x, y: players.red.y});
+    players.blue.history.push({x: players.blue.x, y: players.blue.y});
+}
+
+// --- 极其轻量化的方形碰撞检测 ---
+function canMoveTo(x, y, r) {
+    const checkPoints = [
+        {x: x - r, y: y - r}, {x: x + r, y: y - r},
+        {x: x - r, y: y + r}, {x: x + r, y: y + r}
+    ];
+    for (let p of checkPoints) {
+        let c = Math.floor(p.x / cellSize);
+        let r_ = Math.floor(p.y / cellSize);
+        if (c < 0 || c >= cols || r_ < 0 || r_ >= rows || mazeGrid[r_][c] === 1) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// --- 鼠标/触摸交互 ---
+function getMousePos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    if (gameWon) return;
+    const m = getMousePos(e);
+    for (let key in players) {
+        const p = players[key];
+        if (Math.hypot(m.x - p.x, m.y - p.y) <= p.radius + 10) {
+            activePlayer
