@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>双色双终点彩色迷宫</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #ui-panel {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            letter-spacing: 2px;
+            background: linear-gradient(45deg, #ff4757, #2ed573);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        #score-board {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffa502;
+        }
+
+        #canvas-container {
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background-color: #111;
+        }
+
+        #victory-msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 10px #ff4757, 0 0 20px #2ed573;
+            display: none;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-panel">
+        <h1>双色双终点轨迹迷宫</h1>
+        <div id="score-board">已成功通关: <span id="win-count">0</span> 关</div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+        <div id="victory-msg">恭喜通关！</div>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const winCountEl = document.getElementById('win-count');
+const victoryMsg = document.getElementById('victory-msg');
+
+// --- 游戏配置 ---
+const COLS = 15; // 迷宫列数 (须为奇数效果较好)
+const ROWS = 15; // 迷宫行数
+const CELL_SIZE = canvas.width / COLS;
+
+let winCount = 0;
+let maze = [];
+let particles = []; // 烟花粒子
+
+// 角色状态
+const p1 = {
+    id: 1,
+    color: '#ff4757',      // 红色
+    trailColor: 'rgba(255, 71, 87, 0.3)',
+    targetColor: '#ff6b81',
+    x: 0, y: 0,            // 当前格子坐标
+    targetX: COLS - 1, targetY: ROWS - 1, // 终点
+    path: [],              // 轨迹历史
+    reached: false
+};
+
+const p2 = {
+    id: 2,
+    color: '#2ed573',      // 绿色
+    trailColor: 'rgba(46, 213, 115, 0.3)',
+    targetColor: '#7bed9f',
+    x: 0, y: ROWS - 1,     // 当前格子坐标
+    targetX: COLS - 1, targetY: 0,        // 终点
+    path: [],              // 轨迹历史
+    reached: false
+};
+
+let activePlayer = null; // 当前鼠标选中的角色
+let isDragging = false;
+
+// --- 迷宫生成 (DFS算法) ---
+function initMaze() {
+    maze = Array(ROWS).fill().map(() => Array(COLS).fill(1)); // 1代表墙，0代表路
+    
+    let stack = [];
+    let startX = 1, startY = 1;
+    maze[startY][startX] = 0;
+    stack.push({x: startX, y: startY});
+
+    while(stack.length > 0) {
+        let current = stack[stack.length - 1];
+        let neighbors = [];
+
+        // 检查四个方向 (跨越2格)
+        let dirs = [{x:0, y:-2}, {x:0, y:2}, {x:-2, y:0}, {x:2, y:0}];
+        for(let d of dirs) {
+            let nx = current.x + d.x;
+            let ny = current.y + d.y;
+            if(nx > 0 && nx < COLS - 1 && ny > 0 && ny < ROWS - 1 && maze[ny][nx] === 1) {
+                neighbors.push({x: nx, y: ny, wallX: current.x + d.x/2, wallY: current.y + d.y/2});
+            }
+        }
+
+        if(neighbors.length > 0) {
+            // 随机选一个邻居打通
+            let next = neighbors[Math.floor(Math.random() * neighbors.length)];
+            maze[next.wallY][next.wallX] = 0;
+            maze[next.y][next.x] = 0;
+            stack.push({x: next.x, y: next.y});
+        } else {
+            stack.pop();
+        }
+    }
+
+    // 确保四个关键点（起点、终点）必须是通的
+    maze[0][0] = 0; // p1 起点
+    maze[ROWS-1][COLS-1] = 0; // p1 终点
+    maze[ROWS-1][0] = 0; // p2 起点
+    maze[0][COLS-1] = 0; // p2 终点
+    
+    // 额外打通与内部迷宫的连接
+    maze[1][0] = 0; maze[0][1] = 0;
+    maze[ROWS-2][COLS-1] = 0; maze[ROWS-1][COLS-2] = 0;
+    maze[ROWS-2][0] = 0; maze[ROWS-1][1] = 0;
+    maze[0][COLS-2] = 0; maze[1][COLS-1] = 0;
+}
+
+// --- 游戏初始化/重置 ---
+function startNewLevel() {
+    initMaze();
+    
+    // 重置角色1
+    p1.x = 0; p1.y = 0;
+    p1.path = [{x: 0, y: 0}];
+    p1.reached = false;
+
+    // 重置角色2
+    p2.x = 0; p2.y = ROWS - 1;
+    p2.path = [{x: 0, y: ROWS - 1}];
+    p2.reached = false;
+
+    activePlayer = null;
+    isDragging = false;
+    victoryMsg.style.display = 'none';
+}
+
+// --- 绘制函数 ---
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 1. 绘制迷宫墙体与道路
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (maze[r][c] === 1) {
+                ctx.fillStyle = '#2f3542'; // 墙体颜色
+                ctx.fillRect(c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            }
+        }
+    }
+
+    // 2. 绘制终点 (Targets)
+    // P1 终点
+    ctx.fillStyle = p1.targetColor;
+    ctx.globalAlpha = 0.4;
+    ctx.fillRect(p1.targetX * CELL_SIZE, p1.targetY * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    ctx.globalAlpha = 1.0;
+    ctx.strokeStyle = p1.color;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(p1.targetX * CELL_SIZE + 4, p1.targetY * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+
+    // P2 终点
+    ctx.fillStyle = p2.targetColor;
+    ctx.globalAlpha = 0.4;
+    ctx.fillRect(p2.targetX * CELL_SIZE, p2.targetY * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    ctx.globalAlpha = 1.0;
+    ctx.strokeStyle = p2.color;
+    ctx.strokeRect(p2.targetX * CELL_SIZE + 4, p2.targetY * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+
+    // 3. 绘制运动轨迹 (Trails)
+    drawTrail(p1);
+    drawTrail(p2);
+
+    // 4. 绘制角色 (Players)
+    drawPlayer(p1);
+    drawPlayer(p2);
+
+    // 5. 绘制烟花
+    drawFireworks();
+}
+
+function drawPlayer(p) {
+    ctx.beginPath();
+    let centerX = p.x * CELL_SIZE + CELL_SIZE / 2;
+    let centerY = p.y * CELL_SIZE + CELL_SIZE / 2;
+    ctx.arc(centerX, centerY, CELL_SIZE * 0.35, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.shadowBlur = activePlayer === p ? 15 : 5;
+    ctx.shadowColor = p.color;
+    ctx.fill();
+    ctx.shadowBlur = 0; // 重置阴影
+}
+
+function drawTrail(p) {
+    if (p.path.length < 1) return;
+    ctx.beginPath();
+    ctx.strokeStyle = p.trailColor;
+    ctx.lineWidth = CELL_SIZE * 0.3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    let startX = p.path[0].x * CELL_SIZE + CELL_SIZE / 2;
+    let startY = p.path[0].y * CELL_SIZE + CELL_SIZE / 2;
+    ctx.moveTo(startX, startY);
+
+    for (let i = 1; i < p.path.length; i++) {
+        let x = p.path[i].x * CELL_SIZE + CELL_SIZE / 2;
+        let y = p.path[i].y * CELL_SIZE + CELL_SIZE / 2;
+        ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+}
+
+// --- 鼠标/触摸交互逻辑 ---
+function getMousePos(e) {
+    const rect = canvas.getBoundingClientRect();
+    // 考虑缩放 canvas 的实际显示大小
+    const x = (e.clientX - rect.left) / (rect.right - rect.left) * canvas.width;
+    const y = (e.clientY - rect.top) / (rect.bottom - rect.top) * canvas.height;
+    return {
+        col: Math.floor(x / CELL_SIZE),
+        row: Math.floor(y / CELL_SIZE)
+    };
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    if (p1.reached && p2.reached) return; // 通关中禁止操作
+
+    const pos = getMousePos(e);
+    
+    // 判断点击了哪个小球
+    if (pos.col === p1.x && pos.row === p1.y && !p1.reached) {
+        activePlayer = p1;
+        isDragging = true;
+    } else if (pos.col === p2.x && pos.row === p2.y && !p2.reached) {
+        activePlayer = p2;
+        isDragging = true;
+    }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (!isDragging || !activePlayer) return;
+
+    const pos = getMousePos(e);
+    
+    // 边界检查
+    if (pos.col < 0 || pos.col >= COLS || pos.row < 0 || pos.row >= ROWS) return;
+
+    // 只有当鼠标移动到与当前球相邻的位置（且是路）时才允许移动
+    const dX = pos.col - activePlayer.x;
+    const dY = pos.row - activePlayer.y;
+
+    // 严格限制一步只能走一格（上下左右）
+    if ((Math.abs(dX) === 1 && dY === 0) || (Math.abs(dY) === 1 && dX === 0)) {
+        if (maze[pos.row][pos.col] === 0) { // 是通路
+            activePlayer.x = pos.col;
+            activePlayer.y = pos.row;
+            
+            // 记录轨迹
+            activePlayer.path.push({x: pos.col, y: pos.row});
+
+            // 检查是否到达各自终点
+            if (activePlayer.x === activePlayer.targetX && activePlayer.y === activePlayer.targetY) {
+                activePlayer.reached = true;
+                isDragging = false;
+                activePlayer = null;
+                checkVictory();
+            }
+        }
+    }
+});
+
+window.addEventListener('mouseup', () => {
+    isDragging = false;
+    activePlayer = null;
+});
+
+// --- 胜负判定与烟花特效 ---
+function checkVictory() {
+    if (p1.reached && p2.reached) {
+        winCount++;
+        winCountEl.innerText = winCount;
+        victoryMsg.style.display = 'block';
+
+        // 触发烟花
+        for(let i=0; i<6; i++){
+            setTimeout(createFirework, i * 300);
+        }
+
+        // 3秒后自动进入下一关
+        setTimeout(() => {
+            startNewLevel();
+        }, 3500);
+    }
+}
+
+function createFirework() {
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * (canvas.height / 2) + 100;
+    const colors = ['#ff4757', '#2ed573', '#ffa502', '#1e90ff', '#eccc68', '#ff6b81'];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    
+    for (let i = 0; i < 40; i++) {
+        particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 5,
+            vy: (Math.random() - 0.5) * 5,
+            alpha: 1,
+            color: color
+        });
+    }
+}
+
+function drawFireworks() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.05; // 重力加速度
+        p.alpha -= 0.015;
+
+        if (p.alpha <= 0) {
+            particles.splice(i, 1);
+            continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+// --- 游戏主循环 ---
+function gameLoop() {
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+// 启动游戏
+startNewLevel();
+gameLoop();
+
+</script>
+</body>
+</html>
