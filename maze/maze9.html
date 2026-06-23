@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>双头迷宫 - 极难版</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #282a36; color: #ffffff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; }
+        #ui-panel { text-align: center; margin-bottom: 10px; }
+        h1 { margin: 5px 0; font-size: 26px; color: #f1fa8c; }
+        .instructions { font-size: 14px; color: #bd93f9; margin: 0 0 10px 0; }
+        #stats { display: flex; justify-content: space-around; width: 320px; font-size: 14px; background: #44475a; padding: 8px; border: 3px solid #000; }
+        #canvas-container { position: relative; border: 4px solid #000; background: #111; touch-action: none; }
+        canvas { display: block; }
+        #victory-msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; color: #f1fa8c; display: none; background: rgba(0, 0, 0, 0.9); padding: 15px 30px; border: 3px solid #50fa7b; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-panel">
+        <h1>双头迷宫</h1>
+        <p class="instructions">拖拽移动小球到达终点</p>
+        <div id="stats">
+            <div>TIME: <span id="timer" style="color:#50fa7b">00:00</span></div>
+            <div>LEVEL: <span id="win-count" style="color:#50fa7b">1</span></div>
+            <div>SIZE: <span id="size-view" style="color:#8be9fd">11x11</span></div>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="gameCanvas" width="350" height="350"></canvas>
+        <div id="victory-msg">恭喜通关！</div>
+    </div>
+
+<script>
+var canvas = document.getElementById('gameCanvas');
+var ctx = canvas.getContext('2d');
+var winCountEl = document.getElementById('win-count');
+var timerEl = document.getElementById('timer');
+var sizeViewEl = document.getElementById('size-view');
+var victoryMsg = document.getElementById('victory-msg');
+
+var currentLevel = 1;
+var COLS = 11;
+var ROWS = 11;
+var CELL_SIZE = canvas.width / COLS;
+
+var maze = [];
+var wallColors = [];
+var particles = [];
+var startTime = Date.now();
+
+var wallPallete = ['#ff79c6', '#bd93f9', '#f1fa8c', '#50fa7b'];
+
+var p1 = { id: 1, color: '#ff5555', x: 0, y: 0, targetX: 0, targetY: 0, path: [], reached: false };
+var p2 = { id: 2, color: '#8be9fd', x: 0, y: 0, targetX: 0, targetY: 0, path: [], reached: false };
+
+var activePlayer = null;
+var isDragging = false;
+
+function generateMap() {
+    maze = [];
+    wallColors = [];
+    
+    for (var r = 0; r < ROWS; r++) {
+        maze[r] = [];
+        wallColors[r] = [];
+        for (var c = 0; c < COLS; c++) {
+            if (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1) {
+                if ((r===0&&c===0) || (r===ROWS-1&&c===COLS-1) || (r===ROWS-1&&c===0) || (r===0&&c===COLS-1)) {
+                    maze[r][c] = 0;
+                } else {
+                    maze[r][c] = 1;
+                }
+            } else {
+                // 【难度增强】：大幅提高中后期障碍物密度上限
+                var density = 0.25 + Math.min(currentLevel * 0.04, 0.35);
+                // 使用交错掩码算法，确保在随机生成障碍的同时，绝对不会出现死胡同
+                if (Math.random() < density && (r * c) % 3 !== 0) {
+                    maze[r][c] = 1;
+                } else {
+                    maze[r][c] = 0;
+                }
+            }
+            
+            if (maze[r][c] === 1) {
+                wallColors[r][c] = wallPallete[Math.floor(Math.random() * wallPallete.length)];
+            }
+        }
+    }
+    
+    // 强制打通多条主干道，防止玩家被完全堵死
+    for(var i=0; i<COLS; i++) {
+        maze[1][i] = 0;
+        maze[ROWS-2][i] = 0;
+        if(i % 2 === 0) {
+            for(var j=1; j<ROWS-1; j++) maze[j][i] = 0;
+        }
+    }
+}
+
+function startLevel() {
+    // 【难度增强】：起始 11x11，每 2 关增加 2 格，最高扩展到 23x23
+    var size = 11 + Math.floor((currentLevel - 1) / 2) * 2;
+    COLS = Math.min(size, 23);
+    ROWS = Math.min(size, 23);
+    CELL_SIZE = canvas.width / COLS;
+    sizeViewEl.innerText = COLS + 'x' + ROWS;
+
+    generateMap();
+
+    p1.x = 0; p1.y = 0; p1.targetX = COLS - 1; p1.targetY = ROWS - 1;
+    p1.path = [{x:0, y:0}]; p1.reached = false;
+
+    p2.x = 0; p2.y = ROWS - 1; p2.targetX = COLS - 1; p2.targetY = 0;
+    p2.path = [{x:0, y:ROWS-1}]; p2.reached = false;
+
+    activePlayer = null;
+    isDragging = false;
+    victoryMsg.style.display = 'none';
+    startTime = Date.now();
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            if (maze[r][c] === 1) {
+                var x = c * CELL_SIZE;
+                var y = r * CELL_SIZE;
+                ctx.fillStyle = wallColors[r][c];
+                ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fillRect(x, y + CELL_SIZE - 2, CELL_SIZE, 2);
+                ctx.fillRect(x + CELL_SIZE - 2, y, 2, CELL_SIZE);
+            }
+        }
+    }
+
+    function drawTarget(p) {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = 0.3;
+        ctx.fillRect(p.targetX*CELL_SIZE, p.targetY*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        ctx.globalAlpha = 1.0;
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(p.targetX*CELL_SIZE + 2, p.targetY*CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+    }
+    drawTarget(p1);
+    drawTarget(p2);
+
+    function drawTrail(p) {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = 0.25;
+        for(var i=0; i<p.path.length; i++) {
+            ctx.fillRect(p.path[i].x*CELL_SIZE + CELL_SIZE*0.25, p.path[i].y*CELL_SIZE + CELL_SIZE*0.25, CELL_SIZE*0.5, CELL_SIZE*0.5);
+        }
+        ctx.globalAlpha = 1.0;
+    }
+    drawTrail(p1);
+    drawTrail(p2);
+
+    function drawPlayer(p) {
+        var x = p.x * CELL_SIZE + 2;
+        var y = p.y * CELL_SIZE + 2;
+        var s = CELL_SIZE - 4;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(x, y, s, s);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(x + s*0.2, y + s*0.2, s*0.2, s*0.2);
+        ctx.fillRect(x + s*0.6, y + s*0.2, s*0.2, s*0.2);
+    }
+    drawPlayer(p1);
+    drawPlayer(p2);
+
+    for (var i = particles.length - 1; i >= 0; i--) {
+        var p = particles[i];
+        p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life -= 0.03;
+        if (p.life <= 0) { particles.splice(i, 1); continue; }
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life;
+        ctx.fillRect(p.x, p.y, 4, 4);
+    }
+    ctx.globalAlpha = 1.0;
+}
+
+function getGridPos(e) {
+    var rect = canvas.getBoundingClientRect();
+    var clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    var clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    var x = (clientX - rect.left) / (rect.right - rect.left) * canvas.width;
+    var y = (clientY - rect.top) / (rect.bottom - rect.top) * canvas.height;
+    return { c: Math.floor(x / CELL_SIZE), r: Math.floor(y / CELL_SIZE) };
+}
+
+function onStart(e) {
+    if (p1.reached && p2.reached) return;
+    var pos = getGridPos(e);
+    // 当格子变小时，自动放大手指触摸的判定范围（最高1.8格），确保高难度下依然能轻松选中
+    var radius = COLS > 15 ? 1.8 : 1.4;
+    var d1 = Math.hypot(pos.c - p1.x, pos.r - p1.y);
+    var d2 = Math.hypot(pos.c - p2.x, pos.r - p2.y);
+    if (d1 < radius && !p1.reached) { activePlayer = p1; isDragging = true; }
+    else if (d2 < radius && !p2.reached) { activePlayer = p2; isDragging = true; }
+}
+
+function onMove(e) {
+    if (!isDragging || !activePlayer) return;
+    var pos = getGridPos(e);
+    if (pos.c < 0 || pos.c >= COLS || pos.r < 0 || pos.r >= ROWS) return;
+    
+    var dX = pos.c - activePlayer.x;
+    var dY = pos.r - activePlayer.y;
+    
+    if ((Math.abs(dX) === 1 && dY === 0) || (Math.abs(dY) === 1 && dX === 0)) {
+        if (maze[pos.r][pos.c] === 0) {
+            activePlayer.x = pos.c;
+            activePlayer.y = pos.r;
+            activePlayer.path.push({x: pos.c, y: pos.r});
+            
+            if (activePlayer.x === activePlayer.targetX && activePlayer.y === activePlayer.targetY) {
+                activePlayer.reached = true;
+                isDragging = false;
+                activePlayer = null;
+                checkWin();
+            }
+        }
+    }
+}
+
+function checkWin() {
+    if (p1.reached && p2.reached) {
+        victoryMsg.style.display = 'block';
+        for (var k = 0; k < 50; k++) {
+            particles.push({
+                x: canvas.width / 2 + (Math.random()*60-30),
+                y: canvas.height / 3,
+                vx: Math.random() * 8 - 4,
+                vy: Math.random() * 8 - 6,
+                life: 1.0,
+                color: wallPallete[Math.floor(Math.random() * wallPallete.length)]
+            });
+        }
+        setTimeout(function() {
+            currentLevel++;
+            winCountEl.innerText = currentLevel;
+            startLevel();
+        }, 3000);
+    }
+}
+
+canvas.addEventListener('mousedown', onStart);
+canvas.addEventListener('mousemove', onMove);
+window.addEventListener('mouseup', function() { isDragging = false; activePlayer = null; });
+
+canvas.addEventListener('touchstart', function(e) { onStart(e); e.preventDefault(); }, { passive: false });
+canvas.addEventListener('touchmove', function(e) { onMove(e); e.preventDefault(); }, { passive: false });
+window.addEventListener('touchend', function() { isDragging = false; activePlayer = null; });
+
+setInterval(function() {
+    if (p1.reached && p2.reached) return;
+    var elapsed = Math.floor((Date.now() - startTime) / 1000);
+    var m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+    var s = (elapsed % 60).toString().padStart(2, '0');
+    timerEl.innerText = m + ':' + s;
+}, 1000);
+
+function gameLoop() {
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+startLevel();
+gameLoop();
+</script>
+</body>
+</html>
