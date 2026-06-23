@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>双头迷宫 - 难度递增版</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Zpix&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pixel-pink: #ff79c6;
+            --pixel-purple: #bd93f9;
+            --pixel-yellow: #f1fa8c;
+            --pixel-green: #50fa7b;
+            --pixel-red: #ff5555;
+            --pixel-blue: #8be9fd;
+            --bg-dark: #282a36;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: #ffffff;
+            font-family: 'Press Start 2P', 'Zpix', cursive, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        #ui-panel {
+            margin-bottom: 10px;
+            text-align: center;
+            width: 100%;
+        }
+
+        h1 {
+            margin: 10px 0 5px 0;
+            font-size: 24px;
+            color: var(--pixel-yellow);
+            text-shadow: 4px 4px 0px #000;
+        }
+
+        .instructions {
+            font-size: 10px;
+            color: #aaa;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+        }
+
+        #stats {
+            display: flex;
+            justify-content: space-around;
+            width: 95vw;
+            max-width: 600px;
+            font-size: 10px;
+            background: #44475a;
+            padding: 10px 0;
+            border: 4px solid #000;
+            box-shadow: 4px 4px 0px #000;
+        }
+
+        .stat-box span {
+            color: var(--pixel-green);
+        }
+
+        #canvas-container {
+            position: relative;
+            margin-top: 10px;
+            border: 8px solid #000;
+            background: #000;
+            touch-action: none; 
+            image-rendering: pixelated;
+        }
+
+        canvas {
+            display: block;
+            background-color: #111;
+            max-width: 95vw;
+            max-height: 60vh;
+        }
+
+        #victory-msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            color: var(--pixel-yellow);
+            text-shadow: 4px 4px 0px #000;
+            display: none;
+            text-align: center;
+            z-index: 10;
+            background: rgba(0,0,0,0.9);
+            padding: 20px;
+            border: 4px solid var(--pixel-green);
+            pointer-events: none;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-panel">
+        <h1>双头迷宫</h1>
+        <p class="instructions">拖拽移动小球到达终点</p>
+        <div id="stats">
+            <div class="stat-box">TIME: <span id="timer">00:00</span></div>
+            <div class="stat-box">LEVEL: <span id="win-count">1</span></div>
+            <div class="stat-box">SIZE: <span id="maze-size">11x11</span></div>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+        <div id="victory-msg">恭喜通关！</div>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const winCountEl = document.getElementById('win-count');
+const timerEl = document.getElementById('timer');
+const sizeEl = document.getElementById('maze-size');
+const victoryMsg = document.getElementById('victory-msg');
+
+ctx.imageSmoothingEnabled = false;
+
+// --- 核心：动态难度配置 ---
+let currentLevel = 1;
+let COLS = 11; // 初始较小
+let ROWS = 11;
+let CELL_SIZE = canvas.width / COLS;
+
+let maze = [];
+let wallColors = []; 
+let particles = []; 
+let startTime;
+let timerInterval;
+
+const wallPallete = ['#ff79c6', '#bd93f9', '#f1fa8c', '#50fa7b'];
+
+const p1 = {
+    id: 1, color: '#ff5555',
+    x: 0, y: 0, targetX: 0, targetY: 0,
+    path: [], reached: false
+};
+
+const p2 = {
+    id: 2, color: '#8be9fd',
+    x: 0, y: 0, targetX: 0, targetY: 0,
+    path: [], reached: false
+};
+
+let activePlayer = null; 
+let isDragging = false;
+let decorations = [];
+
+function updateDifficulty() {
+    // 难度递增公式：每过 2 关，迷宫行列数增加 2，上限为 25
+    let size = 11 + Math.floor((currentLevel - 1) / 2) * 2;
+    size = Math.min(size, 25); // 限制最大尺寸，防止格子过小无法操作
+    
+    COLS = size;
+    ROWS = size;
+    CELL_SIZE = canvas.width / COLS;
+    
+    sizeEl.innerText = `${COLS}x${COLS}`;
+}
+
+function initDecorations() {
+    decorations = [];
+    for(let i=0; i<30; i++) {
+        decorations.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 4 + 2,
+            type: Math.floor(Math.random() * 2)
+        });
+    }
+}
+
+function initMaze() {
+    maze = Array(ROWS).fill().map(() => Array(COLS).fill(1));
+    wallColors = Array(ROWS).fill().map(() => Array(COLS).fill(''));
+    
+    let stack = [];
+    let startX = 1, startY = 1;
+    maze[startY][startX] = 0;
+    stack.push({x: startX, y: startY});
+
+    while(stack.length > 0) {
+        let current = stack[stack.length - 1];
+        let neighbors = [];
+        let dirs = [{x:0, y:-2}, {x:0, y:2}, {x:-2, y:0}, {x:2, y:0}];
+        for(let d of dirs) {
+            let nx = current.x + d.x;
+            let ny = current.y + d.y;
+            if(nx > 0 && nx < COLS - 1 && ny > 0 && ny < ROWS - 1 && maze[ny][nx] === 1) {
+                neighbors.push({x: nx, y: ny, wallX: current.x + d.x/2, wallY: current.y + d.y/2});
+            }
+        }
+        if(neighbors.length > 0) {
+            let next = neighbors[Math.floor(Math.random() * neighbors.length)];
+            maze[next.wallY][next.wallX] = 0;
+            maze[next.y][next.x] = 0;
+            stack.push({x: next.x, y: next.y});
+        } else {
+            stack.pop();
+        }
+    }
+    
+    // 动态确保四个角落及临近点连通
+    const ensure = [
+        [0, 0], [0, 1], [1, 0],
+        [ROWS-1, COLS-1], [ROWS-2, COLS-1], [ROWS-1, COLS-2],
+        [ROWS-1, 0], [ROWS-2, 0], [ROWS-1, 1],
+        [0, COLS-1], [0, COLS-2], [1, COLS-1]
+    ];
+    ensure.forEach(([r,c]) => {
+        if(r >= 0 && r < ROWS && c >= 0 && c < COLS) maze[r][c] = 0;
+    });
+
+    for(let r=0; r<ROWS; r++) {
+        for(let c=0; c<COLS; c++) {
+            if(maze[r][c] === 1) {
+                wallColors[r][c] = wallPallete[Math.floor(Math.random() * wallPallete.length)];
+            }
+        }
+    }
+}
+
+function startNewLevel() {
+    updateDifficulty();
+    initMaze();
+    initDecorations();
+
+    // 动态配置起点与终点坐标
+    p1.x = 0; p1.y = 0;
+    p1.targetX = COLS - 1; p1.targetY = ROWS - 1;
+    p1.path = [{x: 0, y: 0}]; p1.reached = false;
+
+    p2.x = 0; p2.y = ROWS - 1;
+    p2.targetX = COLS - 1; p2.targetY = 0;
+    p2.path = [{x: 0, y: ROWS - 1}]; p2.reached = false;
+
+    activePlayer = null;
+    isDragging = false;
+    victoryMsg.style.display = 'none';
+    
+    startTime = Date.now();
+    if(timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(updateTimer, 1000);
+}
+
+function updateTimer() {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+    const s = (elapsed % 60).toString().padStart(2, '0');
+    timerEl.innerText = `${m}:${s}`;
+}
+
+// 基于当前格子大小自适应计算像素深度
+function drawPixelRect(x, y, w, h, color) {
+    let depth = Math.max(2, Math.floor(w * 0.1)); // 动态高光阴影厚度
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(x, y, w, depth);
+    ctx.fillRect(x, y, depth, h);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(x, y + h - depth, w, depth);
+    ctx.fillRect(x + w - depth, y, depth, h);
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 背景点缀
+    ctx.fillStyle = "#444";
+    decorations.forEach(d => {
+        if(d.type === 0) ctx.fillRect(d.x, d.y, d.size, d.size);
+        else {
+            ctx.fillRect(d.x, d.y - d.size, d.size, d.size * 3);
+            ctx.fillRect(d.x - d.size, d.y, d.size * 3, d.size);
+        }
+    });
+
+    // 墙体
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (maze[r][c] === 1) {
+                drawPixelRect(c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE, wallColors[r][c]);
+            }
+        }
+    }
+
+    // 终点
+    function drawEnd(p) {
+        const x = p.targetX * CELL_SIZE;
+        const y = p.targetY * CELL_SIZE;
+        let padding = CELL_SIZE * 0.15;
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = Math.max(2, CELL_SIZE * 0.08);
+        ctx.strokeRect(x + padding, y + padding, CELL_SIZE - padding*2, CELL_SIZE - padding*2);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(x + CELL_SIZE/2 - padding, y + CELL_SIZE/2 - padding, padding*2, padding*2);
+    }
+    drawEnd(p1);
+    drawEnd(p2);
+
+    // 轨迹
+    function drawPixelTrail(p) {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = 0.25;
+        p.path.forEach(pos => {
+            ctx.fillRect(pos.x * CELL_SIZE + CELL_SIZE*0.25, pos.y * CELL_SIZE + CELL_SIZE*0.25, CELL_SIZE*0.5, CELL_SIZE*0.5);
+        });
+        ctx.globalAlpha = 1.0;
+    }
+    drawPixelTrail(p1);
+    drawPixelTrail(p2);
+
+    // 角色
+    function drawPixelPlayer(p) {
+        let offset = CELL_SIZE * 0.12;
+        const x = p.x * CELL_SIZE + offset;
+        const y = p.y * CELL_SIZE + offset;
+        const size = CELL_SIZE - offset * 2;
+        drawPixelRect(x, y, size, size, p.color);
+        
+        // 动态计算眼睛大小
+        let eyeSize = Math.max(2, size * 0.15);
+        ctx.fillStyle = "#000";
+        ctx.fillRect(x + size*0.2, y + size*0.25, eyeSize, eyeSize);
+        ctx.fillRect(x + size*0.6, y + size*0.25, eyeSize, eyeSize);
+    }
+    drawPixelPlayer(p1);
+    drawPixelPlayer(p2);
+
+    drawPixelFireworks();
+}
+
+function createPixelFirework() {
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * (canvas.height / 2);
+    const color = wallPallete[Math.floor(Math.random() * wallPallete.length)];
+    for (let i = 0; i < 25; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.round(Math.random() * 10) - 5) * 2.5,
+            vy: (Math.round(Math.random() * 10) - 5) * 2.5,
+            life: 1.0, color: color,
+            size: 6
+        });
