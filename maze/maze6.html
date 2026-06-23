@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>双色双终点彩色迷宫</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            /* 阻止移动端长按弹出菜单和选择文字 */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        #ui-panel {
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0 0 5px 0;
+            font-size: 22px;
+            letter-spacing: 2px;
+            background: linear-gradient(45deg, #ff4757, #2ed573);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        #score-board {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffa502;
+        }
+
+        #canvas-container {
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            overflow: hidden;
+            /* 核心：阻止移动端拖拽时的页面跟随滚动和刷新行为 */
+            touch-action: none; 
+        }
+
+        canvas {
+            display: block;
+            background-color: #111;
+            /* 响应式适配屏幕大小 */
+            max-width: 95vw;
+            max-height: 70vh;
+        }
+
+        #victory-msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 10px #ff4757, 0 0 20px #2ed573;
+            display: none;
+            pointer-events: none;
+            z-index: 10;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-panel">
+        <h1>双色双终点轨迹迷宫</h1>
+        <div id="score-board">已成功通关: <span id="win-count">0</span> 关</div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+        <div id="victory-msg">恭喜通关！</div>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const winCountEl = document.getElementById('win-count');
+const victoryMsg = document.getElementById('victory-msg');
+
+// --- 游戏配置 ---
+const COLS = 15; 
+const ROWS = 15; 
+const CELL_SIZE = canvas.width / COLS;
+
+let winCount = 0;
+let maze = [];
+let particles = []; 
+
+const p1 = {
+    id: 1,
+    color: '#ff4757',      
+    trailColor: 'rgba(255, 71, 87, 0.35)',
+    targetColor: '#ff6b81',
+    x: 0, y: 0,            
+    targetX: COLS - 1, targetY: ROWS - 1, 
+    path: [],              
+    reached: false
+};
+
+const p2 = {
+    id: 2,
+    color: '#2ed573',      
+    trailColor: 'rgba(46, 213, 115, 0.35)',
+    targetColor: '#7bed9f',
+    x: 0, y: ROWS - 1,     
+    targetX: COLS - 1, targetY: 0,        
+    path: [],              
+    reached: false
+};
+
+let activePlayer = null; 
+let isDragging = false;
+
+// --- 迷宫生成 (DFS) ---
+function initMaze() {
+    maze = Array(ROWS).fill().map(() => Array(COLS).fill(1));
+    let stack = [];
+    let startX = 1, startY = 1;
+    maze[startY][startX] = 0;
+    stack.push({x: startX, y: startY});
+
+    while(stack.length > 0) {
+        let current = stack[stack.length - 1];
+        let neighbors = [];
+        let dirs = [{x:0, y:-2}, {x:0, y:2}, {x:-2, y:0}, {x:2, y:0}];
+        for(let d of dirs) {
+            let nx = current.x + d.x;
+            let ny = current.y + d.y;
+            if(nx > 0 && nx < COLS - 1 && ny > 0 && ny < ROWS - 1 && maze[ny][nx] === 1) {
+                neighbors.push({x: nx, y: ny, wallX: current.x + d.x/2, wallY: current.y + d.y/2});
+            }
+        }
+        if(neighbors.length > 0) {
+            let next = neighbors[Math.floor(Math.random() * neighbors.length)];
+            maze[next.wallY][next.wallX] = 0;
+            maze[next.y][next.x] = 0;
+            stack.push({x: next.x, y: next.y});
+        } else {
+            stack.pop();
+        }
+    }
+    maze[0][0] = 0; maze[ROWS-1][COLS-1] = 0;
+    maze[ROWS-1][0] = 0; maze[0][COLS-1] = 0;
+    maze[1][0] = 0; maze[0][1] = 0;
+    maze[ROWS-2][COLS-1] = 0; maze[ROWS-1][COLS-2] = 0;
+    maze[ROWS-2][0] = 0; maze[ROWS-1][1] = 0;
+    maze[0][COLS-2] = 0; maze[1][COLS-1] = 0;
+}
+
+function startNewLevel() {
+    initMaze();
+    p1.x = 0; p1.y = 0; p1.path = [{x: 0, y: 0}]; p1.reached = false;
+    p2.x = 0; p2.y = ROWS - 1; p2.path = [{x: 0, y: ROWS - 1}]; p2.reached = false;
+    activePlayer = null;
+    isDragging = false;
+    victoryMsg.style.display = 'none';
+}
+
+// --- 绘制 ---
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (maze[r][c] === 1) {
+                ctx.fillStyle = '#2f3542'; 
+                ctx.fillRect(c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            }
+        }
+    }
+
+    // 绘制终点
+    ctx.fillStyle = p1.targetColor; ctx.globalAlpha = 0.3;
+    ctx.fillRect(p1.targetX * CELL_SIZE, p1.targetY * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    ctx.globalAlpha = 1.0; ctx.strokeStyle = p1.color; ctx.lineWidth = 3;
+    ctx.strokeRect(p1.targetX * CELL_SIZE + 4, p1.targetY * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+
+    ctx.fillStyle = p2.targetColor; ctx.globalAlpha = 0.3;
+    ctx.fillRect(p2.targetX * CELL_SIZE, p2.targetY * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    ctx.globalAlpha = 1.0; ctx.strokeStyle = p2.color;
+    ctx.strokeRect(p2.targetX * CELL_SIZE + 4, p2.targetY * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+
+    // 轨迹与角色
+    drawTrail(p1); drawTrail(p2);
+    drawPlayer(p1); drawPlayer(p2);
+    drawFireworks();
+}
+
+function drawPlayer(p) {
+    ctx.beginPath();
+    let centerX = p.x * CELL_SIZE + CELL_SIZE / 2;
+    let centerY = p.y * CELL_SIZE + CELL_SIZE / 2;
+    ctx.arc(centerX, centerY, CELL_SIZE * 0.38, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.shadowBlur = activePlayer === p ? 18 : 6;
+    ctx.shadowColor = p.color;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+}
+
+function drawTrail(p) {
+    if (p.path.length < 1) return;
+    ctx.beginPath();
+    ctx.strokeStyle = p.trailColor;
+    ctx.lineWidth = CELL_SIZE * 0.4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.moveTo(p.path[0].x * CELL_SIZE + CELL_SIZE / 2, p.path[0].y * CELL_SIZE + CELL_SIZE / 2);
+    for (let i = 1; i < p.path.length; i++) {
+        ctx.lineTo(p.path[i].x * CELL_SIZE + CELL_SIZE / 2, p.path[i].y * CELL_SIZE + CELL_SIZE / 2);
+    }
+    ctx.stroke();
+}
+
+// --- 核心修改：统一跨平台坐标获取 ---
+function getTouchOrMousePos(e) {
+    const rect = canvas.getBoundingClientRect();
+    // 兼容触摸屏与鼠标
+    let clientX = e.clientX;
+    let clientY = e.clientY;
+    
+    if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    }
+
+    // 计算缩放后的画布真实坐标
+    const x = (clientX - rect.left) / (rect.right - rect.left) * canvas.width;
+    const y = (clientY - rect.top) / (rect.bottom - rect.top) * canvas.height;
+    
+    return {
+        col: Math.floor(x / CELL_SIZE),
+        row: Math.floor(y / CELL_SIZE)
+    };
+}
+
+// 统一判定选中的函数
+function handleStart(e) {
+    if (p1.reached && p2.reached) return;
+    const pos = getTouchOrMousePos(e);
+    
+    // 移动端优化：扩大判定范围（九宫格内点击只要最靠近对应球都算选中）
+    const d1 = Math.hypot(pos.col - p1.x, pos.row - p1.y);
+    const d2 = Math.hypot(pos.col - p2.x, pos.row - p2.y);
+
+    if (d1 < 1.5 && !p1.reached && (d1 <= d2 || p2.reached)) {
+        activePlayer = p1;
+        isDragging = true;
+    } else if (d2 < 1.5 && !p2.reached) {
+        activePlayer = p2;
+        isDragging = true;
+    }
+}
+
+function handleMove(e) {
+    if (!isDragging || !activePlayer) return;
+    const pos = getTouchOrMousePos(e);
+    
+    if (pos.col < 0 || pos.col >= COLS || pos.row < 0 || pos.row >= ROWS) return;
+
+    const dX = pos.col - activePlayer.x;
+    const dY = pos.row - activePlayer.y;
+
+    // 限制单步走一格
+    if ((Math.abs(dX) === 1 && dY === 0) || (Math.abs(dY) === 1 && dX === 0)) {
+        if (maze[pos.row][pos.col] === 0) { 
+            activePlayer.x = pos.col;
+            activePlayer.y = pos.row;
+            activePlayer.path.push({x: pos.col, y: pos.row});
+
+            if (activePlayer.x === activePlayer.targetX && activePlayer.y === activePlayer.targetY) {
+                activePlayer.reached = true;
+                isDragging = false;
+                activePlayer = null;
+                checkVictory();
+            }
+        }
+    }
+}
+
+function handleEnd() {
+    isDragging = false;
+    activePlayer = null;
+}
+
+// --- 监听 PC 端事件 ---
+canvas.addEventListener('mousedown', handleStart);
+canvas.addEventListener('mousemove', handleMove);
+window.addEventListener('mouseup', handleEnd);
+
+// --- 监听 移动端触摸事件 ---
+canvas.addEventListener('touchstart', (e) => {
+    handleStart(e);
+    e.preventDefault(); // 阻止滚动
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+    handleMove(e);
+    e.preventDefault(); 
+}, { passive: false });
+
+window.addEventListener('touchend', handleEnd);
+
+
+// --- 胜利与烟花 ---
+function checkVictory() {
+    if (p1.reached && p2.reached) {
+        winCount++;
+        winCountEl.innerText = winCount;
+        victoryMsg.style.display = 'block';
+
+        for(let i=0; i<6; i++){
+            setTimeout(createFirework, i * 300);
+        }
+        setTimeout(() => { startNewLevel(); }, 3500);
+    }
+}
+
+function createFirework() {
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * (canvas.height / 2) + 100;
+    const colors = ['#ff4757', '#2ed573', '#ffa502', '#1e90ff', '#ff6b81'];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    for (let i = 0; i < 35; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6,
+            alpha: 1, color: color
+        });
+    }
+}
+
+function drawFireworks() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx; p.y += p.vy; p.vy += 0.06; p.alpha -= 0.015;
+        if (p.alpha <= 0) { particles.splice(i, 1); continue; }
+        ctx.save(); ctx.globalAlpha = p.alpha; ctx.beginPath();
+        ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2); ctx.fillStyle = p.color;
+        ctx.fill(); ctx.restore();
+    }
+}
+
+function gameLoop() {
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+startNewLevel();
+gameLoop();
+</script>
+</body>
+</html>
