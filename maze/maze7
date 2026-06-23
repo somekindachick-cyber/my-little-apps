@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>双头迷宫 - 8-Bit Retro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Zpix&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pixel-pink: #ff79c6;
+            --pixel-purple: #bd93f9;
+            --pixel-yellow: #f1fa8c;
+            --pixel-green: #50fa7b;
+            --pixel-red: #ff5555;
+            --pixel-blue: #8be9fd;
+            --bg-dark: #282a36;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: #ffffff;
+            /* 使用像素字体，如果加载失败则使用备用系统字体 */
+            font-family: 'Press Start 2P', 'Zpix', cursive, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        #ui-panel {
+            margin-bottom: 10px;
+            text-align: center;
+            width: 100%;
+        }
+
+        h1 {
+            margin: 10px 0;
+            font-size: 24px;
+            color: var(--pixel-yellow);
+            text-shadow: 4px 4px 0px #000;
+        }
+
+        .instructions {
+            font-size: 10px;
+            color: #aaa;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        #stats {
+            display: flex;
+            justify-content: space-around;
+            width: 95vw;
+            max-width: 600px;
+            font-size: 10px;
+            background: #44475a;
+            padding: 10px 0;
+            border: 4px solid #000;
+            box-shadow: 4px 4px 0px #000;
+        }
+
+        .stat-box span {
+            color: var(--pixel-green);
+        }
+
+        #canvas-container {
+            position: relative;
+            margin-top: 15px;
+            border: 8px solid #000;
+            background: #000;
+            touch-action: none; 
+            image-rendering: pixelated; /* 强制像素化渲染 */
+        }
+
+        canvas {
+            display: block;
+            background-color: #111;
+            max-width: 95vw;
+            max-height: 60vh;
+        }
+
+        #victory-msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: var(--pixel-yellow);
+            text-shadow: 4px 4px 0px #000;
+            display: none;
+            text-align: center;
+            z-index: 10;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border: 4px solid var(--pixel-green);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-panel">
+        <h1>双头迷宫</h1>
+        <p class="instructions">拖拽移动小球到达终点</p>
+        <div id="stats">
+            <div class="stat-box">TIME: <span id="timer">00:00</span></div>
+            <div class="stat-box">LEVEL: <span id="win-count">1</span></div>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+        <div id="victory-msg">恭喜通关！</div>
+    </div>
+
+<script>
+/**
+ * 8-BIT 双头迷宫
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const winCountEl = document.getElementById('win-count');
+const timerEl = document.getElementById('timer');
+const victoryMsg = document.getElementById('victory-msg');
+
+// 禁用图像平滑以保持像素感
+ctx.imageSmoothingEnabled = false;
+
+const COLS = 15; 
+const ROWS = 15; 
+const CELL_SIZE = canvas.width / COLS;
+
+let winCount = 1;
+let maze = [];
+let wallColors = []; // 存储每块墙的固定颜色
+let particles = []; 
+let startTime;
+let timerInterval;
+
+const wallPallete = ['#ff79c6', '#bd93f9', '#f1fa8c', '#50fa7b']; // 粉、紫、黄、绿
+
+const p1 = {
+    id: 1,
+    color: '#ff5555', // 红
+    targetColor: '#ff5555',
+    x: 0, y: 0,            
+    targetX: COLS - 1, targetY: ROWS - 1, 
+    path: [], reached: false
+};
+
+const p2 = {
+    id: 2,
+    color: '#8be9fd', // 蓝
+    targetColor: '#8be9fd',
+    x: 0, y: ROWS - 1,     
+    targetX: COLS - 1, targetY: 0,        
+    path: [], reached: false
+};
+
+let activePlayer = null; 
+let isDragging = false;
+
+// --- 像素装饰元素 ---
+let decorations = [];
+function initDecorations() {
+    decorations = [];
+    for(let i=0; i<30; i++) {
+        decorations.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 4 + 2,
+            type: Math.floor(Math.random() * 2) // 0: 点, 1: 十字
+        });
+    }
+}
+
+function initMaze() {
+    maze = Array(ROWS).fill().map(() => Array(COLS).fill(1));
+    wallColors = Array(ROWS).fill().map(() => Array(COLS).fill(''));
+    
+    let stack = [];
+    let startX = 1, startY = 1;
+    maze[startY][startX] = 0;
+    stack.push({x: startX, y: startY});
+
+    while(stack.length > 0) {
+        let current = stack[stack.length - 1];
+        let neighbors = [];
+        let dirs = [{x:0, y:-2}, {x:0, y:2}, {x:-2, y:0}, {x:2, y:0}];
+        for(let d of dirs) {
+            let nx = current.x + d.x;
+            let ny = current.y + d.y;
+            if(nx > 0 && nx < COLS - 1 && ny > 0 && ny < ROWS - 1 && maze[ny][nx] === 1) {
+                neighbors.push({x: nx, y: ny, wallX: current.x + d.x/2, wallY: current.y + d.y/2});
+            }
+        }
+        if(neighbors.length > 0) {
+            let next = neighbors[Math.floor(Math.random() * neighbors.length)];
+            maze[next.wallY][next.wallX] = 0;
+            maze[next.y][next.x] = 0;
+            stack.push({x: next.x, y: next.y});
+        } else {
+            stack.pop();
+        }
+    }
+    
+    // 基础路径打通
+    const ensure = [[0,0],[ROWS-1,COLS-1],[ROWS-1,0],[0,COLS-1],[1,0],[0,1],[ROWS-2,0],[ROWS-1,1],[0,COLS-2],[1,COLS-1],[ROWS-2,COLS-1],[ROWS-1,COLS-2]];
+    ensure.forEach(([r,c]) => maze[r][c] = 0);
+
+    // 为墙壁分配颜色
+    for(let r=0; r<ROWS; r++) {
+        for(let c=0; c<COLS; c++) {
+            if(maze[r][c] === 1) {
+                wallColors[r][c] = wallPallete[Math.floor(Math.random() * wallPallete.length)];
+            }
+        }
+    }
+}
+
+function startNewLevel() {
+    initMaze();
+    initDecorations();
+    p1.x = 0; p1.y = 0; p1.path = [{x: 0, y: 0}]; p1.reached = false;
+    p2.x = 0; p2.y = ROWS - 1; p2.path = [{x: 0, y: ROWS - 1}]; p2.reached = false;
+    activePlayer = null;
+    isDragging = false;
+    victoryMsg.style.display = 'none';
+    
+    startTime = Date.now();
+    if(timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(updateTimer, 1000);
+}
+
+function updateTimer() {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+    const s = (elapsed % 60).toString().padStart(2, '0');
+    timerEl.innerText = `${m}:${s}`;
+}
+
+// --- 像素绘制逻辑 ---
+function drawPixelRect(x, y, w, h, color, depth = 4) {
+    // 主体
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, w, h);
+    // 高光 (上和左)
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(x, y, w, depth);
+    ctx.fillRect(x, y, depth, h);
+    // 阴影 (下和右)
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(x, y + h - depth, w, depth);
+    ctx.fillRect(x + w - depth, y, depth, h);
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 背景点缀
+    ctx.fillStyle = "#444";
+    decorations.forEach(d => {
+        if(d.type === 0) ctx.fillRect(d.x, d.y, d.size, d.size);
+        else {
+            ctx.fillRect(d.x, d.y - d.size, d.size, d.size * 3);
+            ctx.fillRect(d.x - d.size, d.y, d.size * 3, d.size);
+        }
+    });
+
+    // 绘制墙体
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (maze[r][c] === 1) {
+                drawPixelRect(c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE, wallColors[r][c]);
+            }
+        }
+    }
+
+    // 绘制终点 (像素十字或方块)
+    function drawEnd(p) {
+        const x = p.targetX * CELL_SIZE;
+        const y = p.targetY * CELL_SIZE;
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(x+8, y+8, CELL_SIZE-16, CELL_SIZE-16);
+        ctx.fillStyle = p.color;
+        // 像素点缀
+        ctx.fillRect(x + CELL_SIZE/2 - 4, y + CELL_SIZE/2 - 4, 8, 8);
+    }
+    drawEnd(p1);
+    drawEnd(p2);
+
+    // 轨迹
+    function drawPixelTrail(p) {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = 0.3;
+        p.path.forEach(pos => {
+            ctx.fillRect(pos.x * CELL_SIZE + CELL_SIZE/4, pos.y * CELL_SIZE + CELL_SIZE/4, CELL_SIZE/2, CELL_SIZE/2);
+        });
+        ctx.globalAlpha = 1.0;
+    }
+    drawPixelTrail(p1);
+    drawPixelTrail(p2);
+
+    // 角色
+    function drawPixelPlayer(p) {
+        const x = p.x * CELL_SIZE + 6;
+        const y = p.y * CELL_SIZE + 6;
+        const size = CELL_SIZE - 12;
+        drawPixelRect(x, y, size, size, p.color, 4);
+        // 眼睛
+        ctx.fillStyle = "#000";
+        ctx.fillRect(x + 6, y + 8, 6, 6);
+        ctx.fillRect(x + size - 12, y + 8, 6, 6);
+    }
+    drawPixelPlayer(p1);
+    drawPixelPlayer(p2);
+
+    drawPixelFireworks();
+}
+
+// --- 像素烟花 ---
+function createPixelFirework() {
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * (canvas.height / 2);
+    const colors = wallPallete;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    for (let i = 0; i < 20; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.round(Math.random() * 10) - 5) * 2,
+            vy: (Math.round(Math.random() * 10) - 5) * 2,
+            life: 1.0, color: color,
+            size: 8 // 大像素粒子
+        });
+    }
+}
+
+function drawPixelFireworks() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx; p.y += p.vy; p.vy += 0.5; p.life -= 0.02;
+        if (p.life <= 0) { particles.splice(i, 1); continue; }
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life;
+        ctx.fillRect(Math.round(p.x/8)*8, Math.round(p.y/8)*8, p.size, p.size);
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+// --- 交互 ---
+function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    let cx = e.clientX || (e.touches && e.touches[0].clientX);
+    let cy = e.clientY || (e.touches && e.touches[0].clientY);
+    const x = (cx - rect.left) / (rect.right - rect.left) * canvas.width;
+    const y = (cy - rect.top) / (rect.bottom - rect.top) * canvas.height;
+    return { col: Math.floor(x / CELL_SIZE), row: Math.floor(y / CELL_SIZE) };
+}
+
+function handleStart(e) {
+    if (p1.reached && p2.reached) return;
+    const pos = getPos(e);
+    const d1 = Math.hypot(pos.col - p1.x, pos.row - p1.y);
+    const d2 = Math.hypot(pos.col - p2.x, pos.row - p2.y);
+    if (d1 < 1.5 && !p1.reached) { activePlayer = p1; isDragging = true; }
+    else if (d2 < 1.5 && !p2.reached) { activePlayer = p2; isDragging = true; }
+}
+
+function handleMove(e) {
+    if (!isDragging || !activePlayer) return;
+    const pos = getPos(e);
+    if (pos.col < 0 || pos.col >= COLS || pos.row < 0 || pos.row >= ROWS) return;
+    const dX = pos.col - activePlayer.x;
+    const dY = pos.row - activePlayer.y;
+    if ((Math.abs(dX) === 1 && dY === 0) || (Math.abs(dY) === 1 && dX === 0)) {
+        if (maze[pos.row][pos.col] === 0) { 
+            activePlayer.x = pos.col;
+            activePlayer.y = pos.row;
+            if(!activePlayer.path.some(p => p.x === pos.col && p.y === pos.row)) {
+                activePlayer.path.push({x: pos.col, y: pos.row});
+            }
+            if (activePlayer.x === activePlayer.targetX && activePlayer.y === activePlayer.targetY) {
+                activePlayer.reached = true;
+                isDragging = false;
+                activePlayer = null;
+                checkVictory();
+            }
+        }
+    }
+}
+
+function checkVictory() {
+    if (p1.reached && p2.reached) {
+        clearInterval(timerInterval);
+        victoryMsg.style.display = 'block';
+        for(let i=0; i<8; i++) setTimeout(createPixelFirework, i * 200);
+        setTimeout(() => { 
+            winCount++;
+            winCountEl.innerText = winCount;
+            startNewLevel(); 
+        }, 4000);
+    }
+}
+
+canvas.addEventListener('mousedown', handleStart);
+canvas.addEventListener('mousemove', handleMove);
+window.addEventListener('mouseup', () => { isDragging = false; activePlayer = null; });
+canvas.addEventListener('touchstart', (e) => { handleStart(e); e.preventDefault(); }, { passive: false });
+canvas.addEventListener('touchmove', (e) => { handleMove(e); e.preventDefault(); }, { passive: false });
+window.addEventListener('touchend', () => { isDragging = false; activePlayer = null; });
+
+function gameLoop() {
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+startNewLevel();
+gameLoop();
+</script>
+</body>
+</html>
