@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>32x32 高级像素画板 (支持触摸)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #eef2f3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            touch-action: none; /* 防止手机端拖拽时页面跟着滚动 */
+        }
+
+        h1 {
+            color: #333;
+            margin: 5px 0 15px 0;
+            font-size: 24px;
+        }
+
+        /* 工具栏 */
+        .toolbar {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .btn.active { background-color: #dc3545; }
+        #clearBtn { background-color: #6c757d; }
+
+        /* 256色彩色盘容器 */
+        .palette-container {
+            max-width: 460px;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .palette-title {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+        .palette {
+            display: grid;
+            grid-template-columns: repeat(16, 1fr);
+            gap: 2px;
+        }
+        .color-cube {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            border-radius: 2px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        .color-cube.selected {
+            outline: 2px solid #000;
+            outline-offset: 1px;
+            z-index: 10;
+        }
+
+        /* 画布容器 */
+        .canvas-container {
+            background: white;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        /* 32x32 网格，每个点 13px */
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(32, 13px);
+            grid-template-rows: repeat(32, 13px);
+            background-color: #ddd;
+            gap: 1px;
+        }
+
+        .pixel {
+            background-color: #ffffff;
+            width: 13px;
+            height: 13px;
+        }
+
+        /* 关闭网格线线宽调整 */
+        #grid.no-lines {
+            gap: 0;
+            background-color: transparent;
+        }
+        #
