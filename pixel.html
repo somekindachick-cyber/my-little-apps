@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极简像素画板</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        /* 工具栏样式 */
+        .toolbar {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #0056b3;
+        }
+
+        .btn.active {
+            background-color: #dc3545;
+        }
+
+        #clearBtn {
+            background-color: #6c757d;
+        }
+        #clearBtn:hover {
+            background-color: #5a6268;
+        }
+
+        /* 画布容器 */
+        .canvas-container {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        /* 网格宿主 */
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(16, 25px);
+            grid-template-rows: repeat(16, 25px);
+            background-color: #ccc;
+            gap: 1px; /* 网格线线宽 */
+            user-select: none; /* 防止拖动时选中文字 */
+        }
+
+        /* 单个像素点 */
+        .pixel {
+            background-color: #ffffff;
+            width: 25px;
+            height: 25px;
+            cursor: crosshair;
+            transition: background-color 0.1s;
+        }
+
+        /* 无网格线状态 */
+        #grid.no-lines {
+            gap: 0;
+            background-color: transparent;
+        }
+        #grid.no-lines .pixel {
+            width: 25px;
+            height: 25px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Pixel Art 画板</h1>
+
+    <div class="toolbar">
+        <label for="colorPicker">选择颜色：</label>
+        <input type="color" id="colorPicker" value="#000000">
+        
+        <button class="btn" id="eraserBtn">橡皮擦：关</button>
+        <button class="btn" id="gridLineBtn">网格线：开</button>
+        <button class="btn" id="clearBtn">清空画布</button>
+    </div>
+
+    <div class="canvas-container">
+        <div id="grid"></div>
+    </div>
+
+    <script>
+        const GRID_SIZE = 16; // 16x16 的网格
+        const grid = document.getElementById('grid');
+        const colorPicker = document.getElementById('colorPicker');
+        const eraserBtn = document.getElementById('eraserBtn');
+        const gridLineBtn = document.getElementById('gridLineBtn');
+        const clearBtn = document.getElementById('clearBtn');
+
+        let isDrawing = false;
+        let isEraserOn = false;
+
+        // 初始化创建网格
+        function createGrid() {
+            grid.innerHTML = '';
+            for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+                const pixel = document.createElement('div');
+                pixel.classList.add('pixel');
+                
+                // 鼠标按下涂色
+                pixel.addEventListener('mousedown', (e) => {
+                    isDrawing = true;
+                    draw(e.target);
+                });
+
+                // 鼠标按住并划过时涂色（实现拖拽连续画图）
+                pixel.addEventListener('mouseenter', (e) => {
+                    if (isDrawing) {
+                        draw(e.target);
+                    }
+                });
+
+                grid.appendChild(pixel);
+            }
+        }
+
+        // 涂色/擦除逻辑
+        function draw(pixelElement) {
+            if (isEraserOn) {
+                pixelElement.style.backgroundColor = '#ffffff';
+            } else {
+                pixelElement.style.backgroundColor = colorPicker.value;
+            }
+        }
+
+        // 全局监听鼠标松开事件，停止画图
+        window.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+
+        // 切换橡皮擦
+        eraserBtn.addEventListener('click', () => {
+            isEraserOn = !isEraserOn;
+            if (isEraserOn) {
+                eraserBtn.textContent = '橡皮擦：开';
+                eraserBtn.classList.add('active');
+            } else {
+                eraserBtn.textContent = '橡皮擦：关';
+                eraserBtn.classList.remove('active');
+            }
+        });
+
+        // 切换网格线
+        gridLineBtn.addEventListener('click', () => {
+            grid.classList.toggle('no-lines');
+            if (grid.classList.contains('no-lines')) {
+                gridLineBtn.textContent = '网格线：关';
+            } else {
+                gridLineBtn.textContent = '网格线：开';
+            }
+        });
+
+        // 清空画布
+        clearBtn.addEventListener('click', () => {
+            const pixels = document.querySelectorAll('.pixel');
+            pixels.forEach(pixel => pixel.style.backgroundColor = '#ffffff');
+        });
+
+        // 启动
+        createGrid();
+    </script>
+</body>
+</html>
